@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cybersecurity Analysis Result",
+  "description": "Schema for the final JSON response produced by the Cybersecurity Graph analysis pipeline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary", "technical_analysis", "recommendations"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "error", "warning"],
+      "description": "Global analysis status"
+    },
+    "summary": {"type": "string", "description": "Executive summary (2-3 sentences)"},
+    "technical_analysis": {"type": "string", "description": "Detailed technical analysis"},
+    "recommendations": {
+      "oneOf": [
+        {"type": "array", "items": {"type": "string"}},
+        {"type": "string"}
+      ],
+      "description": "Actionable recommendations (array preferred)"
+    },
+    "recommendations_with_impact": {
+      "type": "array",
+      "description": "Enriched recommendations with impact/effort/priority",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["recommendation"],
+        "properties": {
+          "recommendation": {"type": "string"},
+          "impact": {"type": "string", "enum": ["High","Medium","Low"]},
+          "effort": {"type": "string", "enum": ["High","Medium","Low"]},
+          "priority": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "confidence": {"type": "string", "enum": ["High","Medium","Low"], "description": "Confidence level"},
+    "threat_level": {"type": "string", "enum": ["Critical","High","Medium","Low","Info"], "description": "Estimated threat level"},
+    "next_steps": {"oneOf": [{"type":"array","items":{"type":"string"}}, {"type":"string"}]},
+    "data_summary": {"type": "string"},
+    "insights": {"oneOf": [{"type":"array","items":{"type":"string"}}, {"type":"string"}]},
+    "risk_assessment": {
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "overall": {"type": "string"},
+            "breakdown": {"type": "object", "additionalProperties": true}
+          }
+        }
+      ]
+    },
+    "timestamp": {"type": "string", "format": "date-time"},
+    "original_question": {"type": "string"},
+    "original_intent": {"type": "string"},
+    "query": {"type": "string"},
+    "query_rationale": {"type": "string"},
+    "query_status": {"type": "string"},
+    "record_count": {"type": "integer", "minimum": 0},
+    "iterations_used": {"type": "integer", "minimum": 0},
+    "execution_time": {"type": "number", "minimum": 0},
+    "system_info": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "data": {
+      "type": "array",
+      "description": "Array of data records returned by the query",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {"type": "string", "enum": ["node","relationship","record"]},
+          "id": {"oneOf": [{"type":"string"},{"type":"integer"}]},
+          "labels": {"type": "array", "items": {"type": "string"}},
+          "relationship_type": {"type": "string"},
+          "properties": {"type": "object", "additionalProperties": true},
+          "from": {"type": "string"},
+          "to": {"type": "string"},
+          "raw": {"type": "object", "additionalProperties": true},
+          "score": {"type": "number"}
+        }
+      }
+    },
+    "provenance": {"type": "object", "additionalProperties": true},
+    "error_details": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "error_type": {"type": "string"},
+        "error_message": {"type": "string"},
+        "original_query": {"type": "string"}
+      }
+    },
+    "empty_results_details": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "original_intent": {"type": "string"},
+        "query_rationale": {"type": "string"},
+        "suggestion": {"type": "string"}
+      }
+    }
+  },
+  "examples": [
+    {
+      "status": "success",
+      "summary": "3 dispositifs critiques exposés détectés",
+      "technical_analysis": "La requête a identifié 3 Device nodes avec 'criticality=High' et ports ouverts sur 445/139.",
+      "recommendations": ["Isoler les devices critiques","Appliquer les patchs"],
+      "confidence": "High",
+      "threat_level": "High",
+      "timestamp": "2025-10-31T07:00:48.801239Z",
+      "record_count": 3,
+      "data": [
+        {"type":"node","labels":["Device"],"properties":{"id":"device-123","ip":"192.168.11.12","criticality":"High"}}
+      ]
+    }
+  ]
+}

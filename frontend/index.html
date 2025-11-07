@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybersecurity Graph Analyzer - Client POC</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>� Cybersecurity Graph Analyzer</h1>
+            <p>Client POC pour visualiser les analyses de graphe de sécurité</p>
+        </header>
+
+        <!-- Barre de statut -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-item">
+                <span class="label">Status:</span>
+                <span id="analysisStatus" class="badge">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Threat Level:</span>
+                <span id="threatLevel" class="badge">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Confidence:</span>
+                <span id="confidenceLevel" class="badge">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Records:</span>
+                <span id="recordCount">0</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="fileSelect">📁 Résultats d'analyse:</label>
+                <select id="fileSelect">
+                    <option value="">-- Sélectionner un fichier --</option>
+                </select>
+                <button onclick="loadAnalysis()" class="btn btn-primary">Charger</button>
+                <button onclick="refreshFileList()" class="btn btn-secondary">🔄</button>
+            </div>
+
+            <div class="control-group">
+                <label for="mockQuery">🧪 Générer une analyse mock:</label>
+                <input type="text" id="mockQuery" placeholder="Ex: Dispositifs critiques avec SMB exposé">
+                <button onclick="generateMockAnalysis()" class="btn btn-success">Générer Mock</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="panel graph-panel">
+                <h3>🔍 Graphe de sécurité</h3>
+                <div id="network"></div>
+                <div class="graph-legend">
+                    <div class="legend-item"><span class="legend-color" style="background: #ff6b6b;"></span> Critical</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #ee5a6f;"></span> High</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #feca57;"></span> Medium</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #48dbfb;"></span> Low</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #1dd1a1;"></span> Safe</div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel summary-panel">
+                    <h3>📊 Résumé</h3>
+                    <div id="summaryContent" class="content-box">
+                        Sélectionnez une analyse pour voir le résumé
+                    </div>
+                </div>
+
+                <div class="panel recommendations-panel">
+                    <h3>💡 Recommandations</h3>
+                    <div id="recommendationsContent" class="content-box">
+                        Aucune recommandation
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="details-section">
+            <div class="panel">
+                <h3>🔬 Analyse technique</h3>
+                <div id="technicalAnalysis" class="content-box">
+                    Aucune analyse chargée
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>📋 Détails du nœud sélectionné</h3>
+                <div id="nodeDetails" class="content-box">
+                    Cliquez sur un nœud pour voir ses détails
+                </div>
+            </div>
+        </div>
+
+        <div class="panel json-panel">
+            <h3>📄 Données JSON brutes</h3>
+            <button onclick="toggleJsonView()" class="btn btn-secondary btn-sm">Afficher/Masquer</button>
+            <pre id="jsonDisplay" style="display: none;"></pre>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

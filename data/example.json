@@ -1,0 +1,38 @@
+{
+  "projet": {
+    "nom": "JSON Visualizer",
+    "version": "1.0.0",
+    "description": "Outil de visualisation de données JSON",
+    "technologies": [
+      "FastAPI",
+      "JavaScript",
+      "vis.js"
+    ],
+    "auteur": {
+      "nom": "Développeur",
+      "role": "Full Stack"
+    },
+    "features": [
+      {
+        "id": 1,
+        "nom": "Visualisation graphique",
+        "status": "actif"
+      },
+      {
+        "id": 2,
+        "nom": "Upload de fichiers",
+        "status": "actif"
+      },
+      {
+        "id": 3,
+        "nom": "Export de données",
+        "status": "en développement"
+      }
+    ],
+    "stats": {
+      "lignes_code": 500,
+      "fichiers": 7,
+      "dernier_update": "2025-11-07"
+    }
+  }
+}
