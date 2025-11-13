@@ -1,5 +1,5 @@
 // Configuration de l'URL de l'API
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://localhost:8001';
 
 // Variables globales
 let network = null;
