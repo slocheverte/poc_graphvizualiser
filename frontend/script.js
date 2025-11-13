@@ -1,8 +1,15 @@
 // Configuration de l'URL de l'API
 const API_URL = 'http://localhost:8001';
 
-// Variables globales
-let network = null;
+console.log('Loaded script.js v2 (D3)');
+
+// Variables globales pour rendu D3
+let svg = null;
+let simulation = null;
+let linkGroup = null;
+let nodeGroup = null;
+let linkElements = null;
+let nodeElements = null;
 let currentAnalysisData = null;
 
 // Initialisation au chargement de la page
@@ -11,78 +18,49 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshFileList();
 });
 
-// Initialise le réseau vis.js avec configuration pour cybersécurité
+// Initialise le rendu D3 pour la visualisation du graphe (configuration cybersécurité)
 function initNetwork() {
     const container = document.getElementById('network');
-    const data = {
-        nodes: [],
-        edges: []
-    };
-    
-    const options = {
-        nodes: {
-            shape: 'box',
-            margin: 10,
-            widthConstraint: {
-                maximum: 200
-            },
-            font: {
-                size: 14,
-                face: 'Arial',
-                color: '#ecf0f1'
-            },
-            borderWidth: 2,
-            shadow: true
-        },
-        edges: {
-            arrows: {
-                to: { enabled: true, scaleFactor: 0.8 }
-            },
-            smooth: {
-                type: 'cubicBezier',
-                roundness: 0.5
-            },
-            font: {
-                size: 12,
-                color: '#95a5a6',
-                background: '#16213e'
-            },
-            width: 2,
-            shadow: true
-        },
-        physics: {
-            enabled: true,
-            hierarchicalRepulsion: {
-                nodeDistance: 180
-            },
-            solver: 'hierarchicalRepulsion'
-        },
-        layout: {
-            hierarchical: {
-                direction: 'UD',
-                sortMethod: 'directed',
-                nodeSpacing: 200,
-                levelSeparation: 200
-            }
-        },
-        interaction: {
-            hover: true,
-            tooltipDelay: 100,
-            navigationButtons: true,
-            keyboard: true
-        }
-    };
-    
-    network = new vis.Network(container, data, options);
-    
-    // Événement de clic sur un nœud
-    network.on('click', function(params) {
-        if (params.nodes.length > 0) {
-            const nodeId = params.nodes[0];
-            const nodeData = network.body.data.nodes.get(nodeId);
-            displayNodeDetails(nodeData);
-        }
+    // clear any previous content
+    container.innerHTML = '';
+
+    const width = container.clientWidth || 800;
+    const height = 600;
+
+    svg = d3.select(container)
+        .append('svg')
+        .attr('width', '100%')
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+
+    // defs for arrow markers
+    const defs = svg.append('defs');
+    defs.append('marker')
+        .attr('id', 'arrow')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 20)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', '#95a5a6');
+
+    // groups
+    linkGroup = svg.append('g').attr('class', 'links');
+    nodeGroup = svg.append('g').attr('class', 'nodes');
+
+    // zoom
+    const zoom = d3.zoom().on('zoom', (event) => {
+        linkGroup.attr('transform', event.transform);
+        nodeGroup.attr('transform', event.transform);
     });
+    svg.call(zoom);
+
+    // initial empty simulation; created on render
+    simulation = null;
 }
 
 // Affiche les détails d'un nœud sélectionné
@@ -166,17 +144,21 @@ async function loadAnalysis() {
         // Récupère les données du graphe
         const graphResponse = await fetch(`${API_URL}/graph/${filename}`);
         const graphData = await graphResponse.json();
-        
-        // Applique les couleurs selon la criticité
+
+        // Validation minimale
+        if (!graphData || !Array.isArray(graphData.nodes) || !Array.isArray(graphData.edges)) {
+            throw new Error('Format de graph invalide (attendu {nodes: [], edges: []})');
+        }
+
+        // Applique les couleurs selon la criticité et assure les ids en string
         graphData.nodes.forEach(node => {
             node.color = getNodeColor(node);
+            if (node.id === undefined || node.id === null) node.id = node.label || Math.random().toString(36).slice(2,9);
+            node.id = String(node.id);
         });
-        
-        // Met à jour le réseau
-        network.setData({
-            nodes: graphData.nodes,
-            edges: graphData.edges
-        });
+
+        // Rendu via D3
+        renderGraph(graphData);
         
         showMessage(`Analyse "${filename}" chargée avec succès`, 'success');
     } catch (error) {
@@ -304,44 +286,171 @@ async function generateMockAnalysis() {
 
 // Retourne une couleur selon le type et la criticité du nœud
 function getNodeColor(node) {
-    // Priorité à la criticité si présente dans les propriétés
-    if (node.properties && node.properties.criticality) {
-        const crit = node.properties.criticality.toLowerCase();
-        if (crit === 'critical') return '#ff6b6b';
-        if (crit === 'high') return '#ee5a6f';
-        if (crit === 'medium') return '#feca57';
-        if (crit === 'low') return '#48dbfb';
+    try {
+        // Priorité à la criticité si présente dans les propriétés
+        const critRaw = node?.properties?.criticality;
+        if (critRaw !== undefined && critRaw !== null) {
+            const crit = String(critRaw).toLowerCase();
+            if (crit === 'critical') return '#ff6b6b';
+            if (crit === 'high') return '#ee5a6f';
+            if (crit === 'medium') return '#feca57';
+            if (crit === 'low') return '#48dbfb';
+        }
+
+        // Couleur selon les labels
+        if (Array.isArray(node.labels)) {
+            if (node.labels.includes('Vulnerability') || node.labels.includes('CVE')) {
+                return '#e74c3c';
+            }
+            if (node.labels.includes('Device') || node.labels.includes('Server')) {
+                return '#3498db';
+            }
+            if (node.labels.includes('User') || node.labels.includes('Account')) {
+                return '#9b59b6';
+            }
+            if (node.labels.includes('Network') || node.labels.includes('Subnet')) {
+                return '#1abc9c';
+            }
+        }
+
+        // Couleur selon le type
+        const colors = {
+            'device': '#3498db',
+            'vulnerability': '#e74c3c',
+            'user': '#9b59b6',
+            'network': '#1abc9c',
+            'object': '#95a5a6',
+            'array': '#f39c12',
+            'string': '#27ae60',
+            'number': '#8e44ad'
+        };
+
+        return colors[String(node.type).toLowerCase()] || '#7f8c8d';
+    } catch (e) {
+        return '#7f8c8d';
     }
-    
-    // Couleur selon les labels
-    if (node.labels) {
-        if (node.labels.includes('Vulnerability') || node.labels.includes('CVE')) {
-            return '#e74c3c';
-        }
-        if (node.labels.includes('Device') || node.labels.includes('Server')) {
-            return '#3498db';
-        }
-        if (node.labels.includes('User') || node.labels.includes('Account')) {
-            return '#9b59b6';
-        }
-        if (node.labels.includes('Network') || node.labels.includes('Subnet')) {
-            return '#1abc9c';
-        }
+}
+
+// Render graph with D3 (force-directed)
+function renderGraph(graphData) {
+    const nodes = graphData.nodes.map(n => ({
+        id: String(n.id),
+        label: n.label || String(n.id),
+        type: n.type,
+        labels: n.labels,
+        properties: n.properties,
+        color: n.color || getNodeColor(n)
+    }));
+
+    const links = graphData.edges.map((e, i) => ({
+        id: e.id ?? `e${i}`,
+        source: String(e.from ?? e.source),
+        target: String(e.to ?? e.target),
+        label: e.label
+    }));
+
+    // stop previous simulation
+    if (simulation) {
+        simulation.stop();
+        simulation = null;
     }
-    
-    // Couleur selon le type
-    const colors = {
-        'device': '#3498db',
-        'vulnerability': '#e74c3c',
-        'user': '#9b59b6',
-        'network': '#1abc9c',
-        'object': '#95a5a6',
-        'array': '#f39c12',
-        'string': '#27ae60',
-        'number': '#8e44ad'
-    };
-    
-    return colors[node.type] || '#7f8c8d';
+
+    // clear previous elements
+    linkGroup.selectAll('*').remove();
+    nodeGroup.selectAll('*').remove();
+
+    // create links
+    linkElements = linkGroup.selectAll('line')
+        .data(links, d => d.id)
+        .enter()
+        .append('line')
+        .attr('stroke', '#95a5a6')
+        .attr('stroke-width', 2)
+        .attr('marker-end', 'url(#arrow)');
+
+    // create nodes as groups with rect + text
+    nodeElements = nodeGroup.selectAll('g')
+        .data(nodes, d => d.id)
+        .enter()
+        .append('g')
+        .attr('class', 'node')
+        .call(d3.drag()
+            .on('start', (event, d) => {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            })
+            .on('drag', (event, d) => {
+                d.fx = event.x;
+                d.fy = event.y;
+            })
+            .on('end', (event, d) => {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            })
+        )
+        .on('click', (event, d) => {
+            // affichage des détails
+            displayNodeDetails(d);
+        });
+
+    // append rect and text
+    nodeElements.append('rect')
+        .attr('x', -50)
+        .attr('y', -14)
+        .attr('width', 100)
+        .attr('height', 28)
+        .attr('rx', 6)
+        .attr('ry', 6)
+        .attr('fill', d => d.color)
+        .attr('stroke', '#222');
+
+    nodeElements.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.35em')
+        .attr('fill', '#ecf0f1')
+        .style('pointer-events', 'none')
+        .text(d => d.label);
+
+    // adjust rect size to text width
+    nodeElements.each(function(d) {
+        const g = d3.select(this);
+        const text = g.select('text');
+        const rect = g.select('rect');
+        const bbox = text.node().getBBox();
+        rect.attr('width', Math.max(80, bbox.width + 20))
+            .attr('x', - (Math.max(80, bbox.width + 20) / 2));
+    });
+
+    // simulation
+    const width = svg.node().viewBox.baseVal.width || svg.node().clientWidth || 800;
+    const height = svg.node().viewBox.baseVal.height || 600;
+
+    simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(140).strength(1))
+        .force('charge', d3.forceManyBody().strength(-400))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(d => 50))
+        .on('tick', () => {
+            linkElements
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            nodeElements.attr('transform', d => `translate(${d.x},${d.y})`);
+        });
+
+    // keep nodes/links references to simulation nodes/links
+    simulation.nodes(nodes);
+    simulation.force('link').links(links);
+
+    // fit view
+    try {
+        const all = svg.node();
+        // optional: center or fit - quick fit by centering
+    } catch (e) {}
 }
 
 // Toggle l'affichage du JSON
