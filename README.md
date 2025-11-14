@@ -2,23 +2,36 @@
 
 ## 📋 Description
 
-**POC d'un client d'analyse de graphe de cybersécurité** avec architecture backend-frontend moderne. Ce projet permet de visualiser et analyser les résultats d'un service d'analyse de graphes de sécurité (basé sur Neo4j) sous forme interactive et intuitive.
+POC léger pour visualiser et explorer des résultats d'analyse de graphes de cybersécurité (backend FastAPI + frontend D3). Le dépôt fournit :
 
-### Objectifs du projet
-- ✅ Recevoir et valider des réponses JSON d'un service d'analyse de graphe
-- ✅ Visualiser les dispositifs, vulnérabilités et relations de sécurité
-- ✅ Afficher les recommandations priorisées avec impact/effort
-- ✅ Analyser les niveaux de menace et la criticité des éléments
-- ✅ Interface professionnelle pour équipes de cybersécurité
+- un serveur API simple (validation Pydantic, endpoints pour fichiers/mock/graph/stats),
+- un frontend HTML/JS qui affiche un graphe interactif et des panneaux de synthèse.
 
-### Cas d'usage
-- Analyse de la surface d'attaque d'une infrastructure
-- Identification de dispositifs critiques exposés
-- Visualisation des vulnérabilités et de leur propagation
-- Priorisation des actions de remédiation selon l'impact
+Cas d'usage typiques : inspection de la surface d'attaque, identification d'éléments critiques et priorisation des actions.
 
+## Table des matières
+
+- [Description](#description)
+- [Architecture](#architecture)
+  - [Backend (FastAPI)](#backend-fastapi)
+  - [Frontend (HTML/CSS/JavaScript)](#frontend-htmlcssjavascript)
+- [Installation & démarrage (recommandé)](#installation-demarrage-recommande)
+- [Guide d'utilisation](#guide-dutilisation)
+- [Fonctionnalités principales](#fonctionnalites-principales)
+- [Structure du projet](#structure-du-projet)
+- [API Endpoints](#api-endpoints)
+- [Technologies utilisées](#technologies-utilisees)
+- [Tests et Développement](#tests-et-developpement)
+- [Déploiement](#deploiement)
+- [Roadmap / Améliorations futures](#roadmap-ameliorations-futures)
+- [Dépannage](#depannage)
+- [Contribution](#contribution)
+- [Licence](#licence)
+
+<a id="architecture"></a>
 ## 🏗️ Architecture
 
+<a id="backend-fastapi"></a>
 ### Backend (FastAPI)
 Le backend agit comme un **client API** pour recevoir et traiter les résultats d'analyse :
 
@@ -32,6 +45,7 @@ Le backend agit comme un **client API** pour recevoir et traiter les résultats 
 - **Support Neo4j** : Gestion native des structures nœuds/relations
 - **CORS activé** : Permet les requêtes cross-origin en développement
 
+<a id="frontend-htmlcssjavascript"></a>
 ### Frontend (HTML/CSS/JavaScript)
 Interface web moderne et professionnelle pour la visualisation :
 
@@ -49,142 +63,76 @@ Interface web moderne et professionnelle pour la visualisation :
 - **Thème dark** : Design professionnel adapté aux SOC (Security Operations Center)
 - **Responsive** : Adapté aux différentes tailles d'écran
 
-## 🚀 Installation
+<a id="installation-demarrage-recommande"></a>
+## 🚀 Installation & démarrage (rapide)
 
-### 1. Backend
+Recommandé : créer un venv projet-local `.venv` et activer avant d'installer les dépendances.
 
-```powershell
-# Créer un environnement virtuel
-cd backend
-python -m venv venv
-
-# Activer l'environnement (Windows PowerShell)
-.\venv\Scripts\Activate.ps1
-
-# Installer les dépendances
-pip install -r requirements.txt
-```
-
-### 2. Frontend
-
-Aucune installation nécessaire - ouvrez simplement `frontend/index.html` dans un navigateur.
-
-## ▶️ Démarrage
-
-### 1. Lancer le backend
+Commandes minimales (PowerShell) :
 
 ```powershell
-cd backend
-.\venv\Scripts\Activate.ps1
-python main.py
-```
-
-Le backend sera accessible sur `http://localhost:8000`.
-
-### 2. Ouvrir le frontend
-
-Trois options :
-
-- Ouvrir directement `frontend/index.html` dans un navigateur (simple, sans serveur).
-- Utiliser un serveur HTTP local standard :
-
-```powershell
-cd frontend
-python -m http.server 3000
-```
-
-  Puis accéder à `http://localhost:3000`.
-
-- Utiliser le serveur de développement avec live-reload (recommandé pour le développement) :
-
-1. Installer les dépendances du frontend (recommandé dans un virtualenv) :
-
-```powershell
-# Créer/activer un venv (si vous n'en avez pas déjà un)
+# depuis la racine
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-
-# Installer les dépendances du frontend
+pip install -r backend/requirements.txt
 pip install -r frontend/requirements.txt
 ```
 
-2. Lancer le serveur (depuis la racine du projet) :
+Démarrage rapide :
+
+- Méthode recommandée (Windows) : lancez le helper `run_dev.ps1` qui automatise la création/activation du venv, l'installation minimale et le démarrage du backend+frontend :
 
 ```powershell
+.\run_dev.ps1
+```
+
+- Méthode manuelle (après activation du venv) :
+
+```powershell
+uvicorn backend.main:app --reload --port 8001
 python frontend/serve.py
 ```
 
-Le serveur servira `http://localhost:3000` et rechargera automatiquement la page lorsque `index.html`, `script.js` ou `style.css` sont modifiés.
+Le frontend sera servi sur `http://localhost:3000`, le backend sur `http://localhost:8001`.
 
-## 📖 Guide d'utilisation
+Option pratique : lancer backend + frontend ensemble
+-------------------------------------------------
 
-### Démarrage rapide
-1. **Lancez le backend** (voir section Installation)
-2. **Ouvrez `frontend/index.html`** dans votre navigateur
-3. **Cliquez sur 🔄** pour rafraîchir la liste des analyses disponibles
+Le projet fournit deux helpers pour le développement :
 
-### Workflow typique
+- `run_dev.ps1` (Windows PowerShell) — recommandée pour les utilisateurs Windows. Elle crée/active `.venv` si nécessaire, installe les dépendances et démarre le backend et le frontend avec reload.
+- `dev.py` (cross-platform Python) — lance `uvicorn backend.main:app --reload` et `python frontend/serve.py` en parallèle. Si vous utilisez `dev.py`, assurez-vous d'avoir activé `.venv` qui contient `uvicorn` et `livereload`.
 
-#### Option 1 : Charger une analyse existante
-1. **Sélectionner** un fichier dans le menu déroulant (ex: `cybersec_analysis_example.json`)
-2. **Cliquer sur "Charger"**
-3. Le système affiche :
-   - ✅ Barre de statut avec métriques clés
-   - ✅ Graphe interactif des nœuds et relations
-   - ✅ Résumé exécutif
-   - ✅ Recommandations priorisées
-   - ✅ Analyse technique détaillée
+Exemples :
 
-#### Option 2 : Générer une analyse mock pour test
-1. **Entrer une requête** (ex: "Dispositifs critiques avec SMB exposé")
-2. **Cliquer sur "Générer Mock"**
-3. Une analyse simulée est créée et automatiquement chargée
-4. Parfait pour tester l'interface sans service d'analyse réel
+```powershell
+# Windows (recommandé)
+.\run_dev.ps1
 
-### Exploration du graphe
-- **Cliquer sur un nœud** : Affiche les détails (IP, criticité, OS, etc.)
-- **Hover sur un nœud** : Tooltip avec infos rapides
-- **Zoom** : Molette de la souris
-- **Pan** : Cliquer-glisser pour déplacer
-- **Navigation** : Boutons de contrôle en bas à droite
+# ou, manuellement dans un venv activé
+python dev.py
+```
 
-### Comprendre les codes couleur
-- 🔴 **Rouge (Critical)** : Menace critique, action immédiate requise
-- 🟠 **Orange (High)** : Risque élevé, attention prioritaire
-- 🟡 **Jaune (Medium)** : Risque moyen, à surveiller
-- 🔵 **Bleu (Low)** : Risque faible, information
-- 🟢 **Vert (Safe)** : Élément sécurisé
+Arrêt : Ctrl+C dans la console arrête proprement les deux serveurs.
 
-## 🎨 Fonctionnalités principales
+<a id="guide-dutilisation"></a>
+## 📖 Guide d'utilisation (résumé)
 
-### Visualisation avancée
-- ✅ **Graphe interactif** : Visualisation hiérarchique des dispositifs, vulnérabilités et connexions
-- ✅ **Code couleur intelligent** : Attribution automatique selon la criticité
-- ✅ **Navigation fluide** : Zoom, pan, sélection, boutons de contrôle
-- ✅ **Légende dynamique** : Référence visuelle des niveaux de criticité
-- ✅ **Layout hiérarchique** : Organisation automatique pour clarté maximale
+- Démarrage : lancer backend + frontend (voir section Installation).
+- Charger une analyse : sélectionner un fichier et cliquer sur "Charger".
+- Générer un mock : utiliser `POST /analysis/mock` depuis curl ou l'UI.
+- Exploration : cliquer pour voir détails, utiliser la molette pour zoom et cliquer-glisser pour pan.
+- Codes couleur : Critical=rouge, High=orange, Medium=jaune, Low=bleu, Safe=vert.
 
-### Analyse de sécurité
-- ✅ **Dashboard de métriques** : Status, Threat Level, Confidence, Record Count
-- ✅ **Recommandations enrichies** : Priorisation par impact, effort et priorité
-- ✅ **Analyse technique** : Détails approfondis avec insights automatiques
-- ✅ **Inspection de nœuds** : Propriétés complètes (IP, OS, criticité, CVE, etc.)
-- ✅ **Résumé exécutif** : Vue d'ensemble en 2-3 phrases
+<a id="fonctionnalites-principales"></a>
+## 🎨 Fonctionnalités principales (aperçu)
 
-### Technique
-- ✅ **Validation stricte** : Conformité au schéma JSON avec rapport d'erreurs
-- ✅ **Support Neo4j natif** : Gestion des nœuds, relations et propriétés
-- ✅ **Génération de mocks** : Création d'analyses de test réalistes
-- ✅ **API REST complète** : 8 endpoints pour toutes les opérations
-- ✅ **Statistiques détaillées** : Extraction de métriques clés par analyse
+- Graphe interactif D3 : sélection, zoom, pan, et inspection des nœuds.
+- Dashboard minimal : statut, threat level, confidence, record count.
+- Validation Pydantic côté backend et génération de mocks pour tests.
+- Helpers de dev : `frontend/serve.py` (livereload), `dev.py` / `run_dev.ps1` pour l'environnement local.
 
-### Interface utilisateur
-- ✅ **Thème dark professionnel** : Design moderne pour SOC
-- ✅ **Responsive design** : Adapté desktop/tablette
-- ✅ **Toast notifications** : Feedback visuel des actions
-- ✅ **Toggle JSON** : Affichage/masquage des données brutes
-- ✅ **Performance optimisée** : Gestion efficace de graphes complexes
-
+<a id="structure-du-projet"></a>
 ## 📁 Structure du projet
 
 ```
@@ -205,6 +153,7 @@ poc_graphvizualiser/
 └── README.md
 ```
 
+<a id="api-endpoints"></a>
 ## 🔧 API Endpoints
 
 - `GET /` - Informations sur l'API
@@ -216,6 +165,7 @@ poc_graphvizualiser/
 - `GET /stats/{filename}` - Statistiques d'une analyse (threat level, confidence, etc.)
 - `POST /data` - Enregistre des données JSON
 
+<a id="technologies-utilisees"></a>
 ## 🛠️ Technologies utilisées
 
 ### Backend
@@ -401,6 +351,7 @@ ANALYSIS_SERVICE_API_KEY = "votre-clé-api"
 TIMEOUT_SECONDS = 30
 ```
 
+<a id="tests-et-developpement"></a>
 ## 🧪 Tests et Développement
 
 ### Tester avec les données d'exemple
@@ -450,6 +401,7 @@ def test_invalid_threat_level():
         CybersecurityAnalysisResponse(**data)
 ```
 
+<a id="deploiement"></a>
 ## 🚀 Déploiement
 
 ### Mode production
@@ -477,6 +429,7 @@ def test_invalid_threat_level():
    CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
    ```
 
+<a id="roadmap-ameliorations-futures"></a>
 ## 📝 Roadmap / Améliorations futures
 
 ### Phase 1 : Intégration (Prioritaire)
@@ -504,6 +457,7 @@ def test_invalid_threat_level():
 - [ ] **Scoring** : Calcul automatique de risk scores
 - [ ] **Prédiction** : Anticipation de propagation de vulnérabilités
 
+<a id="depannage"></a>
 ## 🐛 Dépannage
 
 ### Le backend ne démarre pas
@@ -525,6 +479,7 @@ pip install -r backend/requirements.txt --force-reinstall
 - Vérifier que tous les champs obligatoires sont présents
 - Utiliser `/analysis/{filename}` pour voir les erreurs de validation
 
+<a id="contribution"></a>
 ## 🤝 Contribution
 
 ### Workflow de contribution
@@ -539,6 +494,7 @@ pip install -r backend/requirements.txt --force-reinstall
 - **JavaScript** : ESLint, commentaires explicatifs
 - **Git** : Commits atomiques avec messages clairs
 
+<a id="licence"></a>
 ## 📄 Licence
 
 Projet éducatif - IFT697 AUT25
