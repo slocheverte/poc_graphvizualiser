@@ -37,7 +37,7 @@ Interface web moderne et professionnelle pour la visualisation :
 
 - **Dashboard de sécurité** :
   - Barre de statut en temps réel (Status, Threat Level, Confidence, Records)
-  - Graphe interactif avec vis.js pour exploration visuelle
+  - Graphe interactif avec D3.js pour exploration visuelle
   - Code couleur intuitif selon la criticité (Critical=Rouge, High=Orange, etc.)
   
 - **Panneaux d'analyse** :
@@ -79,20 +79,42 @@ cd backend
 python main.py
 ```
 
-Le backend sera accessible sur `http://localhost:8000`
+Le backend sera accessible sur `http://localhost:8000`.
 
 ### 2. Ouvrir le frontend
 
-Deux options :
-- Ouvrir directement `frontend/index.html` dans un navigateur
-- Utiliser un serveur HTTP local :
+Trois options :
+
+- Ouvrir directement `frontend/index.html` dans un navigateur (simple, sans serveur).
+- Utiliser un serveur HTTP local standard :
 
 ```powershell
 cd frontend
 python -m http.server 3000
 ```
 
-Puis accéder à `http://localhost:3000`
+  Puis accéder à `http://localhost:3000`.
+
+- Utiliser le serveur de développement avec live-reload (recommandé pour le développement) :
+
+1. Installer les dépendances du frontend (recommandé dans un virtualenv) :
+
+```powershell
+# Créer/activer un venv (si vous n'en avez pas déjà un)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# Installer les dépendances du frontend
+pip install -r frontend/requirements.txt
+```
+
+2. Lancer le serveur (depuis la racine du projet) :
+
+```powershell
+python frontend/serve.py
+```
+
+Le serveur servira `http://localhost:3000` et rechargera automatiquement la page lorsque `index.html`, `script.js` ou `style.css` sont modifiés.
 
 ## 📖 Guide d'utilisation
 
@@ -202,14 +224,13 @@ poc_graphvizualiser/
 - Pydantic - Validation des données
 
 ### Frontend
-- HTML5/CSS3
+
+- HTML5 / CSS3
 - JavaScript (ES6+)
-- vis.js - Bibliothèque de visualisation de graphes
+- D3.js — bibliothèque de visualisation (utilisée pour le rendu du graphe)
+- Optionnel : `livereload` pour un serveur de développement avec rechargement automatique
 
-## 📝 Schéma de Réponse (`response_schema.json`)
-
-Le système est conçu pour recevoir des analyses conformes au schéma JSON défini :
-
+Si vous développez activement le frontend, utilisez `frontend/serve.py` (basé sur `livereload`) pour recharger automatiquement la page quand `index.html`, `script.js` ou `style.css` changent.
 ### Structure de base
 ```json
 {
