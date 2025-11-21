@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Analyze API Response Schema",
+  "description": "JSON schema describing the response returned by POST /analyze/",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "description": "Top-level status of the analysis",
+      "enum": ["success", "warning", "error"]
+    },
+    "summary": { "type": ["string", "null"], "description": "Human readable executive summary" },
+    "technical_analysis": { "type": ["string", "null"], "description": "Detailed technical analysis" },
+    "recommendations": { "type": ["array", "null"], "items": { "type": "string" }, "description": "Actionable recommendations" },
+    "confidence": { "type": ["string", "null"], "description": "Confidence level (High/Medium/Low)" },
+    "threat_level": { "type": ["string", "null"], "description": "Assessed threat level (Critical/High/Medium/Low/Info)" },
+    "next_steps": { "type": ["string", "null"], "description": "Immediate next steps" },
+    "data_summary": { "type": ["string", "null"], "description": "Short summary of the queried data" },
+    "insights": { "type": ["string", "null"], "description": "Key cybersecurity insights" },
+    "risk_assessment": { "type": ["string", "null"], "description": "Risk assessment text" },
+    "data": { "type": ["object", "array", "null"], "description": "Optional raw or structured data returned by the query" },
+    "executed_query": { "type": ["string", "null"], "description": "Cypher query executed" },
+    "transformed_query": { "type": ["string", "null"], "description": "Transformed Cypher query (if any)" },
+    "record_count": { "type": ["integer", "null"], "minimum": 0, "description": "Number of records returned by the query" },
+    "iterations_used": { "type": ["integer", "null"], "minimum": 0, "description": "Number of refinement iterations used" },
+    "timestamp": { "type": ["string", "null"], "format": "date-time" },
+    "system_info": {
+      "type": "object",
+      "description": "Meta information about the system and model",
+      "properties": {
+        "model": { "type": "string" },
+        "max_iterations": { "type": "integer" },
+        "timeout_seconds": { "type": "integer" }
+      },
+      "additionalProperties": true
+    },
+    "warnings": { "type": ["array", "null"], "items": { "type": "string" } },
+    "error_details": { "type": ["string", "object", "null"], "description": "Optional error details when status is error" }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "status": "success",
+      "summary": "Found 15 internet-exposed devices",
+      "threat_level": "HIGH",
+      "confidence": "HIGH",
+      "recommendations": ["Review firewall rules", "Segment network"],
+      "data": { "devices": [] },
+      "iterations_used": 1,
+      "timestamp": "2025-11-20T21:11:28.386998",
+      "system_info": { "model": "gpt-4o", "max_iterations": 3, "timeout_seconds": 300 }
+    }
+  ]
+}

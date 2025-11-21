@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Analyze Last Query Response Schema",
+  "description": "JSON schema describing the response returned by GET /analyze/last_query",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": { "type": "string", "enum": ["success", "error"] },
+    "nodes": {
+      "type": "array",
+      "description": "List of unique nodes extracted from the last query results",
+      "items": {
+        "type": "object",
+        "required": ["id", "labels", "properties"],
+        "properties": {
+          "id": { "type": ["string", "number"] },
+          "labels": { "type": "array", "items": { "type": "string" } },
+          "properties": { "type": "object", "additionalProperties": true }
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "description": "List of unique relationships extracted from the last query results",
+      "items": {
+        "type": "object",
+        "required": ["start_id", "end_id", "type"],
+        "properties": {
+          "start_id": { "type": ["string", "number", "null"] },
+          "end_id": { "type": ["string", "number", "null"] },
+          "type": { "type": "string" },
+          "properties": { "type": "object", "additionalProperties": true }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "original_status": { "type": ["string", "null"] },
+        "original_record_count": { "type": ["integer", "null"] },
+        "original_query": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "warning": { "type": "string" }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "status": "success",
+      "nodes": [
+        { "id": "w1sftpkel2101.logibec.com", "labels": ["Device"], "properties": { "device_ip_address": "172.19.90.18" } }
+      ],
+      "relationships": [
+        { "start_id": "VIP_WAN_68.67.40.172_to_172.19.90.18:22", "end_id": "w1sftpkel2101.logibec.com", "type": "MAPPED_TO", "properties": {} }
+      ],
+      "meta": { "original_status": "success", "original_record_count": 1, "original_query": "MATCH p=... RETURN p" }
+    }
+  ]
+}

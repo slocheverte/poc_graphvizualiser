@@ -6,8 +6,47 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 from enum import Enum
+import os
+import logging
+from fastapi import Request
+
+# optional http client for upstream API
+try:
+    import httpx
+except Exception:
+    httpx = None
 
 app = FastAPI(title="Cybersecurity Graph Analysis Client API")
+
+# Middleware to log any attempts to call removed /files endpoint so we can identify clients
+logger = logging.getLogger("poc_graphvizualiser.files")
+logger.setLevel(logging.INFO)
+
+
+@app.middleware("http")
+async def log_files_requests(request: Request, call_next):
+    try:
+        if request.url.path == "/files":
+            headers = {k: v for k, v in request.headers.items()}
+            client = request.client.host if request.client else 'unknown'
+            info = f"/files requested from {client} referer={headers.get('referer')} ua={headers.get('user-agent')}"
+            logger.info(info)
+            # Also print to stdout so it appears in uvicorn/livereload console
+            print(info)
+    except Exception:
+        logger.exception("Error in log_files_requests middleware")
+    response = await call_next(request)
+    return response
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize default upstream on startup. Priority: ENV UPSTREAM_API, otherwise default to http://127.0.0.1:8000"""
+    env_up = os.environ.get("UPSTREAM_API")
+    if env_up:
+        app.state.upstream = env_up.rstrip('/')
+    else:
+        app.state.upstream = "http://127.0.0.1:8000"
 
 # Configuration CORS pour permettre les requêtes depuis le frontend
 app.add_middleware(
@@ -21,6 +60,39 @@ app.add_middleware(
 # Chemin vers le dossier data
 DATA_DIR = Path(__file__).parent.parent / "data"
 SCHEMA_PATH = Path(__file__).parent.parent / "response_schema.json"
+
+
+def require_upstream() -> str:
+    """Return the configured upstream URL set via /config/upstream by the frontend.
+    Raises HTTPException(400) if not set.
+    """
+    upstream = getattr(app.state, "upstream", None)
+    if not upstream:
+        raise HTTPException(status_code=400, detail=(
+            "UPSTREAM_API non configuré via l'API. Configurez-le depuis le frontend avec POST /config/upstream {\"upstream\": \"http://127.0.0.1:8000\"}"
+        ))
+    return upstream.rstrip('/')
+
+
+@app.post("/config/upstream")
+async def set_upstream(cfg: Dict[str, str]):
+    """Set the upstream API base URL from the frontend. Body: { "upstream": "http://127.0.0.1:8000" }"""
+    url = cfg.get("upstream")
+    if not url:
+        raise HTTPException(status_code=400, detail="Champ 'upstream' requis")
+    # basic validation
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise HTTPException(status_code=400, detail="L'URL doit commencer par http:// ou https://")
+    app.state.upstream = url.rstrip('/')
+    return {"message": "upstream configuré", "upstream": app.state.upstream}
+
+
+@app.get("/config/upstream")
+async def get_upstream_config():
+    upstream = getattr(app.state, "upstream", None)
+    if not upstream:
+        return {"upstream": None}
+    return {"upstream": upstream}
 
 
 # Modèles Pydantic basés sur le schéma de réponse
@@ -119,11 +191,12 @@ async def root():
         "message": "Cybersecurity Graph Analysis Client API",
         "description": "POC client pour visualiser les résultats d'analyse de graphes de cybersécurité",
         "endpoints": {
-            "GET /files": "Liste tous les fichiers de résultats disponibles",
-            "GET /analysis/{filename}": "Récupère un résultat d'analyse",
-            "POST /analysis/mock": "Génère un résultat d'analyse mock pour test",
-            "GET /graph/{filename}": "Récupère les données formatées pour la visualisation",
-            "GET /stats/{filename}": "Récupère les statistiques d'une analyse",
+            "POST /analysis/mock": "Génère un résultat d'analyse mock pour test (proxy vers upstream)",
+            "POST /upstream/analyze": "Proxy vers l'upstream /analyze/ (retourne analysis + optional graph)",
+            "GET /upstream/last_query": "Proxy vers l'upstream /analyze/last_query",
+            "POST /data": "Proxy pour envoyer des données au backend upstream",
+            "POST /config/upstream": "Configurer l'URL de l'upstream au runtime",
+            "GET /config/upstream": "Récupérer la configuration actuelle de l'upstream",
             "GET /schema": "Récupère le schéma JSON de réponse"
         }
     }
@@ -145,136 +218,156 @@ async def get_schema():
 
 @app.get("/files")
 async def list_files():
-    """Liste tous les fichiers de résultats d'analyse disponibles"""
-    try:
-        DATA_DIR.mkdir(exist_ok=True)
-        json_files = [f.name for f in DATA_DIR.glob("*.json")]
-        return {"files": json_files, "count": len(json_files)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # Removed: listing local/upstream files is not supported in this POC.
+    raise HTTPException(status_code=404, detail="Endpoint removed: file listing is unsupported. Use POST /upstream/analyze or POST /analysis/mock to obtain analysis results.")
 
 
 @app.get("/analysis/{filename}")
 async def get_analysis(filename: str):
-    """Récupère un résultat d'analyse de cybersécurité"""
-    file_path = DATA_DIR / filename
-    
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Fichier d'analyse non trouvé")
-    
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        
-        # Validation optionnelle avec Pydantic
-        try:
-            validated = CybersecurityAnalysisResponse(**data)
-            return {"filename": filename, "data": data, "validation": "passed"}
-        except Exception as validation_error:
-            return {
-                "filename": filename, 
-                "data": data, 
-                "validation": "failed",
-                "validation_errors": str(validation_error)
-            }
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Fichier JSON invalide")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # Removed: fetching analysis by filename is not supported. Use POST /upstream/analyze instead.
+    raise HTTPException(status_code=404, detail="Endpoint removed: per-file analysis retrieval is unsupported. Use POST /upstream/analyze.")
 
 
 @app.post("/analysis/mock")
 async def create_mock_analysis(query: AnalysisQuery):
     """Génère un résultat d'analyse mock pour tester le système"""
-    mock_response = {
-        "status": "success",
-        "summary": f"Analyse mock pour la requête: '{query.query[:50]}...'",
-        "technical_analysis": "Cette analyse est générée pour démonstration. Dans un système réel, "
-                             "elle contiendrait les résultats détaillés de l'analyse de graphe.",
-        "recommendations": [
-            "Vérifier les dispositifs critiques identifiés",
-            "Appliquer les correctifs de sécurité nécessaires",
-            "Surveiller les connexions suspectes"
-        ],
-        "recommendations_with_impact": [
-            {
-                "recommendation": "Isoler les dispositifs à haut risque",
-                "impact": "High",
-                "effort": "Medium",
-                "priority": 1
-            },
-            {
-                "recommendation": "Mettre à jour les systèmes exposés",
-                "impact": "High",
-                "effort": "Low",
-                "priority": 2
+    upstream = require_upstream()
+
+    if httpx is None:
+        raise HTTPException(status_code=500, detail="httpx requis pour interroger l'API upstream mais n'est pas installé")
+
+    url = f"{upstream}/analysis/mock"
+    payload = {"query": query.query, "context": query.context or {}}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            return resp.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erreur upstream: {e}")
+
+
+@app.post("/upstream/analyze")
+async def upstream_analyze(payload: Dict[str, Any]):
+    """Proxy POST to UPSTREAM_API/analyze/ — forward arbitrary payload (e.g. {question: ...})"""
+    upstream = require_upstream()
+    if httpx is None:
+        raise HTTPException(status_code=500, detail="httpx requis mais non installé")
+
+    analyze_url = f"{upstream}/analyze/"
+    last_query_url = f"{upstream}/analyze/last_query"
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(analyze_url, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+
+            # normalize analysis content
+            analysis = data.get('analysis') if isinstance(data, dict) and 'analysis' in data else data
+
+            # Only fetch last_query (graph) if analysis indicates success
+            graph = None
+            graph_present = False
+            should_fetch_graph = isinstance(analysis, dict) and analysis.get('status') == 'success'
+
+            if should_fetch_graph:
+                try:
+                    lq_resp = await client.get(last_query_url)
+                    lq_resp.raise_for_status()
+                    lq = lq_resp.json()
+
+                    # If schema returns nodes/relationships, convert to nodes/edges
+                    if isinstance(lq, dict) and 'nodes' in lq and 'relationships' in lq:
+                        nodes = []
+                        edges = []
+                        for n in lq.get('nodes', []):
+                            nid = str(n.get('id'))
+                            labels = n.get('labels') if isinstance(n.get('labels'), list) else []
+                            props = n.get('properties', {}) if isinstance(n.get('properties'), dict) else {}
+                            label = ', '.join(labels) if labels else nid
+                            nodes.append({
+                                'id': nid,
+                                'label': label,
+                                'labels': labels,
+                                'properties': props
+                            })
+
+                        for r in lq.get('relationships', []):
+                            source = r.get('start_id')
+                            target = r.get('end_id')
+                            reltype = r.get('type') or r.get('relationship_type') or ''
+                            edges.append({
+                                'from': str(source) if source is not None else None,
+                                'to': str(target) if target is not None else None,
+                                'label': reltype,
+                                'properties': r.get('properties', {})
+                            })
+
+                        graph = {'nodes': nodes, 'edges': edges}
+                        graph_present = len(nodes) > 0
+                    else:
+                        # If last_query returns a raw neo4j payload, include it under last_query
+                        graph = {'last_query': lq}
+                        graph_present = True
+                except Exception:
+                    # ignore errors fetching last_query; return analysis at least
+                    graph = None
+                    graph_present = False
+
+            result = {
+                'analysis': analysis,
+                'graph': graph,
+                'graph_present': bool(graph_present)
             }
-        ],
-        "confidence": "High",
-        "threat_level": "Medium",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "original_question": query.query,
-        "record_count": 5,
-        "data": [
-            {
-                "type": "node",
-                "id": "device-001",
-                "labels": ["Device", "Critical"],
-                "properties": {
-                    "ip": "192.168.1.10",
-                    "criticality": "High",
-                    "os": "Windows Server 2019"
-                }
-            },
-            {
-                "type": "node",
-                "id": "device-002",
-                "labels": ["Device"],
-                "properties": {
-                    "ip": "192.168.1.20",
-                    "criticality": "Medium"
-                }
-            },
-            {
-                "type": "relationship",
-                "relationship_type": "CONNECTS_TO",
-                "from": "device-001",
-                "to": "device-002",
-                "properties": {
-                    "port": 445,
-                    "protocol": "SMB"
-                }
-            }
-        ]
-    }
-    
-    # Sauvegarde optionnelle
-    filename = f"mock_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    file_path = DATA_DIR / filename
-    DATA_DIR.mkdir(exist_ok=True)
-    
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(mock_response, f, indent=2, ensure_ascii=False)
-    
-    return {
-        "message": "Analyse mock générée avec succès",
-        "filename": filename,
-        "data": mock_response
-    }
+
+            return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erreur upstream: {e}")
+
+
+@app.get("/upstream/last_query")
+async def upstream_last_query():
+    """Proxy GET to UPSTREAM_API/analyze/last_query"""
+    upstream = require_upstream()
+    if httpx is None:
+        raise HTTPException(status_code=500, detail="httpx requis mais non installé")
+
+    url = f"{upstream}/analyze/last_query"
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            return resp.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erreur upstream: {e}")
 
 
 @app.post("/data")
 async def save_data(json_data: JsonData):
     """Enregistre des données JSON dans un fichier"""
-    file_path = DATA_DIR / json_data.filename
-    
+    upstream = require_upstream()
+
+    if httpx is None:
+        raise HTTPException(status_code=500, detail="httpx requis pour interroger l'API upstream mais n'est pas installé")
+
+    url = f"{upstream}/data"
+    payload = {"data": json_data.data, "filename": json_data.filename}
     try:
-        DATA_DIR.mkdir(exist_ok=True)
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(json_data.data, f, indent=2, ensure_ascii=False)
-        return {"message": "Données enregistrées avec succès", "filename": json_data.filename}
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            return resp.json()
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=502, detail=f"Erreur upstream: {e}")
 
 
 @app.get("/graph/{filename}")
@@ -283,153 +376,18 @@ async def get_graph_data(filename: str):
     Récupère les données d'analyse formatées pour la visualisation en graphe de cybersécurité.
     Extrait les nœuds et relations du champ 'data' de la réponse d'analyse.
     """
-    file_path = DATA_DIR / filename
-    
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Fichier non trouvé")
-    
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            analysis_data = json.load(f)
-        
-        nodes = []
-        edges = []
-        node_map = {}  # Pour éviter les doublons
-        
-        # Si le fichier contient un champ 'data' avec des records
-        if "data" in analysis_data and isinstance(analysis_data["data"], list):
-            for record in analysis_data["data"]:
-                record_type = record.get("type", "unknown")
-                
-                # Traitement des nœuds
-                if record_type == "node":
-                    node_id = record.get("id", f"node_{len(nodes)}")
-                    if node_id not in node_map:
-                        labels = record.get("labels", [])
-                        properties = record.get("properties", {})
-                        
-                        # Construction du label d'affichage
-                        display_label = ", ".join(labels) if labels else str(node_id)
-                        
-                        # Extraction d'informations clés pour l'affichage
-                        details = []
-                        if "ip" in properties:
-                            details.append(f"IP: {properties['ip']}")
-                        if "criticality" in properties:
-                            details.append(f"Criticality: {properties['criticality']}")
-                        
-                        node = {
-                            "id": node_id,
-                            "label": display_label,
-                            "title": "\n".join(details) if details else display_label,
-                            "type": "device" if "Device" in labels else labels[0] if labels else "node",
-                            "properties": properties,
-                            "labels": labels
-                        }
-                        
-                        nodes.append(node)
-                        node_map[node_id] = len(nodes) - 1
-                
-                # Traitement des relations
-                elif record_type == "relationship":
-                    from_node = record.get("from")
-                    to_node = record.get("to")
-                    rel_type = record.get("relationship_type", "RELATED_TO")
-                    
-                    if from_node and to_node:
-                        edge = {
-                            "from": from_node,
-                            "to": to_node,
-                            "label": rel_type,
-                            "title": rel_type,
-                            "properties": record.get("properties", {})
-                        }
-                        edges.append(edge)
-        
-        # Si pas de données structurées, traitement générique du JSON
-        else:
-            def process_generic(obj, parent_id=None, parent_key="root"):
-                node_id = len(nodes)
-                
-                if isinstance(obj, dict):
-                    nodes.append({
-                        "id": node_id,
-                        "label": parent_key,
-                        "type": "object",
-                        "value": f"{{{len(obj)} keys}}",
-                        "properties": obj
-                    })
-                    
-                    if parent_id is not None:
-                        edges.append({"from": parent_id, "to": node_id})
-                    
-                    for key, value in obj.items():
-                        if key != "data":  # Éviter la récursion sur le champ data
-                            process_generic(value, node_id, key)
-                            
-                elif isinstance(obj, list) and len(obj) > 0:
-                    nodes.append({
-                        "id": node_id,
-                        "label": parent_key,
-                        "type": "array",
-                        "value": f"[{len(obj)} items]"
-                    })
-                    
-                    if parent_id is not None:
-                        edges.append({"from": parent_id, "to": node_id})
-                    
-                    for idx, item in enumerate(obj[:10]):  # Limiter à 10 items
-                        process_generic(item, node_id, f"[{idx}]")
-            
-            process_generic(analysis_data)
-        
-        return {
-            "nodes": nodes,
-            "edges": edges,
-            "filename": filename,
-            "metadata": {
-                "status": analysis_data.get("status"),
-                "threat_level": analysis_data.get("threat_level"),
-                "confidence": analysis_data.get("confidence"),
-                "record_count": analysis_data.get("record_count", len(nodes))
-            }
-        }
-        
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Fichier JSON invalide")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    upstream = require_upstream()
+    if httpx is None:
+        raise HTTPException(status_code=500, detail="httpx requis pour interroger l'API upstream mais n'est pas installé")
+
+    # Removed: per-file graph retrieval is unsupported. Use POST /upstream/analyze which may return graph data.
+    raise HTTPException(status_code=404, detail="Endpoint removed: per-file graph retrieval is unsupported. Use POST /upstream/analyze.")
 
 
 @app.get("/stats/{filename}")
 async def get_analysis_stats(filename: str):
-    """Récupère les statistiques d'une analyse"""
-    file_path = DATA_DIR / filename
-    
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Fichier non trouvé")
-    
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        
-        stats = {
-            "filename": filename,
-            "status": data.get("status"),
-            "threat_level": data.get("threat_level"),
-            "confidence": data.get("confidence"),
-            "record_count": data.get("record_count", 0),
-            "has_recommendations": bool(data.get("recommendations")),
-            "recommendation_count": len(data.get("recommendations", [])) if isinstance(data.get("recommendations"), list) else 1,
-            "has_data": bool(data.get("data")),
-            "timestamp": data.get("timestamp"),
-            "execution_time": data.get("execution_time")
-        }
-        
-        return stats
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # Removed: per-file stats retrieval is unsupported. Use analysis responses returned by POST /upstream/analyze.
+    raise HTTPException(status_code=404, detail="Endpoint removed: per-file stats retrieval is unsupported. Use POST /upstream/analyze.")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,51 @@
 // Configuration de l'URL de l'API
 const API_URL = 'http://localhost:8001';
 
-console.log('Loaded script.js v2 (D3)');
+// Debug helper: intercept any client-side request to /files and log stack trace + block it.
+(function(){
+    try {
+        const origFetch = window.fetch;
+        window.fetch = function(input, init){
+            try {
+                const url = (typeof input === 'string') ? input : (input && input.url);
+                if (url && url.indexOf('/files') !== -1) {
+                    console.warn('[debug] Blocked fetch to /files ->', url);
+                    console.trace();
+                    return Promise.resolve(new Response(JSON.stringify({detail: 'blocked by client interceptor'}), {status:404, headers: {'Content-Type':'application/json'}}));
+                }
+            } catch (e) { console.error('fetch interceptor error', e); }
+            return origFetch.apply(this, arguments);
+        };
+
+        const origXOpen = XMLHttpRequest.prototype.open;
+        const origXSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.open = function(method, url){
+            this.__openedUrl = url;
+            return origXOpen.apply(this, arguments);
+        };
+        XMLHttpRequest.prototype.send = function(body){
+            try {
+                if (this.__openedUrl && String(this.__openedUrl).indexOf('/files') !== -1) {
+                    console.warn('[debug] Blocked XHR to /files ->', this.__openedUrl);
+                    console.trace();
+                    // simulate async 404 response
+                    const self = this;
+                    setTimeout(() => {
+                        try { self.readyState = 4; self.status = 404; } catch(e){}
+                        if (typeof self.onreadystatechange === 'function') try{ self.onreadystatechange(); }catch(e){}
+                        if (typeof self.onload === 'function') try{ self.onload(); }catch(e){}
+                    }, 0);
+                    return;
+                }
+            } catch(e){ console.error('XHR interceptor error', e); }
+            return origXSend.apply(this, arguments);
+        };
+    } catch (e) {
+        console.error('Error installing /files interceptor', e);
+    }
+})();
+
+console.log('Loaded script.js v3 (D3)');
 
 // Variables globales pour rendu D3
 let svg = null;
@@ -15,13 +59,68 @@ let currentAnalysisData = null;
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
     initNetwork();
-    refreshFileList();
+    loadUpstreamConfig();
 });
+
+
+// Charge la configuration de l'upstream depuis le backend
+async function loadUpstreamConfig() {
+    try {
+        const resp = await fetch(`${API_URL}/config/upstream`);
+        const data = await resp.json();
+        const input = document.getElementById('upstreamInput');
+        const status = document.getElementById('upstreamStatus');
+        if (data && data.upstream) {
+            if (input) input.value = data.upstream;
+            if (status) status.textContent = `(configuré: ${data.upstream})`;
+        } else {
+            if (input) input.value = '';
+            if (status) status.textContent = '(non configuré)';
+        }
+    } catch (e) {
+        console.warn('Impossible de charger la config upstream:', e.message);
+    }
+}
+
+// Configure l'upstream via le backend (frontend-controlled)
+async function setUpstream() {
+    const input = document.getElementById('upstreamInput');
+    const url = input.value.trim();
+    if (!url) {
+        showMessage('Veuillez renseigner une URL upstream', 'warning');
+        return;
+    }
+
+    try {
+        const resp = await fetch(`${API_URL}/config/upstream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ upstream: url })
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || 'Erreur lors de la configuration');
+        }
+
+        const result = await resp.json();
+    const upstreamStatusEl = document.getElementById('upstreamStatus');
+    if (upstreamStatusEl) upstreamStatusEl.textContent = `(configuré: ${result.upstream})`;
+        showMessage('Upstream configuré', 'success');
+        // La liste de fichiers a été supprimée; on ne la rafraîchit plus
+    } catch (e) {
+        showMessage('Erreur: ' + e.message, 'error');
+    }
+}
 
 // Initialise le rendu D3 pour la visualisation du graphe (configuration cybersécurité)
 function initNetwork() {
     const container = document.getElementById('network');
     // clear any previous content
+    if (!container) {
+        console.warn('initNetwork: #network container not found');
+        return;
+    }
     container.innerHTML = '';
 
     const width = container.clientWidth || 800;
@@ -85,103 +184,36 @@ function displayNodeDetails(nodeData) {
         html += `</ul>`;
     }
     
-    detailsDiv.innerHTML = html;
+    if (detailsDiv) detailsDiv.innerHTML = html;
 }
 
-// Rafraîchit la liste des fichiers d'analyse
-async function refreshFileList() {
-    try {
-        const response = await fetch(`${API_URL}/files`);
-        const data = await response.json();
-        
-        const select = document.getElementById('fileSelect');
-        select.innerHTML = '<option value="">-- Sélectionner un fichier --</option>';
-        
-        data.files.forEach(file => {
-            const option = document.createElement('option');
-            option.value = file;
-            option.textContent = file;
-            select.appendChild(option);
-        });
-        
-        showMessage(`${data.count} fichier(s) d'analyse trouvé(s)`, 'success');
-    } catch (error) {
-        showMessage('Erreur lors de la récupération des fichiers: ' + error.message, 'error');
-    }
-}
+// La gestion des fichiers locaux a été retirée : la frontend n'interroge plus /files
 
-// Charge une analyse sélectionnée
-async function loadAnalysis() {
-    const select = document.getElementById('fileSelect');
-    const filename = select.value;
-    
-    if (!filename) {
-        showMessage('Veuillez sélectionner un fichier', 'warning');
-        return;
-    }
-    
-    try {
-        // Récupère l'analyse complète
-        const analysisResponse = await fetch(`${API_URL}/analysis/${filename}`);
-        const analysisResult = await analysisResponse.json();
-        currentAnalysisData = analysisResult.data;
-        
-        // Met à jour la barre de statut
-        updateStatusBar(currentAnalysisData);
-        
-        // Affiche le résumé
-        displaySummary(currentAnalysisData);
-        
-        // Affiche les recommandations
-        displayRecommendations(currentAnalysisData);
-        
-        // Affiche l'analyse technique
-        displayTechnicalAnalysis(currentAnalysisData);
-        
-        // Affiche le JSON brut
-        document.getElementById('jsonDisplay').textContent = JSON.stringify(currentAnalysisData, null, 2);
-        
-        // Récupère les données du graphe
-        const graphResponse = await fetch(`${API_URL}/graph/${filename}`);
-        const graphData = await graphResponse.json();
-
-        // Validation minimale
-        if (!graphData || !Array.isArray(graphData.nodes) || !Array.isArray(graphData.edges)) {
-            throw new Error('Format de graph invalide (attendu {nodes: [], edges: []})');
-        }
-
-        // Applique les couleurs selon la criticité et assure les ids en string
-        graphData.nodes.forEach(node => {
-            node.color = getNodeColor(node);
-            if (node.id === undefined || node.id === null) node.id = node.label || Math.random().toString(36).slice(2,9);
-            node.id = String(node.id);
-        });
-
-        // Rendu via D3
-        renderGraph(graphData);
-        
-        showMessage(`Analyse "${filename}" chargée avec succès`, 'success');
-    } catch (error) {
-        showMessage('Erreur lors du chargement de l\'analyse: ' + error.message, 'error');
-        console.error(error);
-    }
-}
+// La charge d'analyses par fichier local a été supprimée.
+// Désormais, les analyses sont déclenchées via `analyzeQuestion()` et le backend fournit les données à afficher.
 
 // Met à jour la barre de statut
 function updateStatusBar(data) {
     const statusEl = document.getElementById('analysisStatus');
-    statusEl.textContent = data.status || '-';
-    statusEl.className = 'badge ' + (data.status || '').toLowerCase();
-    
+    if (statusEl) {
+        statusEl.textContent = data.status || '-';
+        statusEl.className = 'badge ' + (data.status || '').toLowerCase();
+    }
+
     const threatEl = document.getElementById('threatLevel');
-    threatEl.textContent = data.threat_level || '-';
-    threatEl.className = 'badge ' + (data.threat_level || '').toLowerCase();
-    
+    if (threatEl) {
+        threatEl.textContent = data.threat_level || '-';
+        threatEl.className = 'badge ' + (data.threat_level || '').toLowerCase();
+    }
+
     const confEl = document.getElementById('confidenceLevel');
-    confEl.textContent = data.confidence || '-';
-    confEl.className = 'badge ' + (data.confidence || '').toLowerCase();
-    
-    document.getElementById('recordCount').textContent = data.record_count || 0;
+    if (confEl) {
+        confEl.textContent = data.confidence || '-';
+        confEl.className = 'badge ' + (data.confidence || '').toLowerCase();
+    }
+
+    const rc = document.getElementById('recordCount');
+    if (rc) rc.textContent = data.record_count || 0;
 }
 
 // Affiche le résumé
@@ -199,7 +231,7 @@ function displaySummary(data) {
         html += `<p style="color: #95a5a6; font-size: 0.85em; margin-top: 10px;">📅 ${date.toLocaleString()}</p>`;
     }
     
-    summaryDiv.innerHTML = html;
+    if (summaryDiv) summaryDiv.innerHTML = html;
 }
 
 // Affiche les recommandations
@@ -221,7 +253,7 @@ function displayRecommendations(data) {
                 </div>
             `;
         });
-        recDiv.innerHTML = html;
+    if (recDiv) recDiv.innerHTML = html;
     } else if (data.recommendations) {
         const recs = Array.isArray(data.recommendations) ? data.recommendations : [data.recommendations];
         let html = '<ul style="margin-left: 20px;">';
@@ -229,16 +261,16 @@ function displayRecommendations(data) {
             html += `<li style="margin-bottom: 10px;">${rec}</li>`;
         });
         html += '</ul>';
-        recDiv.innerHTML = html;
+    if (recDiv) recDiv.innerHTML = html;
     } else {
-        recDiv.innerHTML = '<p style="color: #95a5a6;">Aucune recommandation disponible</p>';
+    if (recDiv) recDiv.innerHTML = '<p style="color: #95a5a6;">Aucune recommandation disponible</p>';
     }
 }
 
 // Affiche l'analyse technique
 function displayTechnicalAnalysis(data) {
     const techDiv = document.getElementById('technicalAnalysis');
-    techDiv.innerHTML = `<p>${data.technical_analysis || 'Aucune analyse technique disponible'}</p>`;
+    if (techDiv) techDiv.innerHTML = `<p>${data.technical_analysis || 'Aucune analyse technique disponible'}</p>`;
     
     if (data.insights) {
         const insights = Array.isArray(data.insights) ? data.insights : [data.insights];
@@ -247,37 +279,53 @@ function displayTechnicalAnalysis(data) {
             html += `<li style="margin-bottom: 8px;">${insight}</li>`;
         });
         html += '</ul>';
-        techDiv.innerHTML += html;
+        if (techDiv) techDiv.innerHTML += html;
     }
 }
 
-// Génère une analyse mock
-async function generateMockAnalysis() {
-    const query = document.getElementById('mockQuery').value || 'Test de requête par défaut';
-    
+// Envoie une question vers l'endpoint analyze de l'upstream via le backend
+async function analyzeQuestion() {
+    const qEl = document.getElementById('questionInput');
+    const question = (qEl && qEl.value) ? qEl.value : 'What are Internet-Exposed Devices?';
+
     try {
-        const response = await fetch(`${API_URL}/analysis/mock`, {
+        const response = await fetch(`${API_URL}/upstream/analyze`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                query: query,
-                context: {}
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: question })
         });
-        
-        if (response.ok) {
-            const result = await response.json();
-            showMessage(`Analyse mock générée: ${result.filename}`, 'success');
-            await refreshFileList();
-            
-            // Sélectionne automatiquement le fichier créé
-            document.getElementById('fileSelect').value = result.filename;
-            await loadAnalysis();
-        } else {
-            throw new Error('Erreur lors de la génération');
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || 'Erreur lors de la requête d\'analyse');
         }
+
+        const result = await response.json();
+
+        // Normalise la réponse pour l'affichage
+        const analysis = result.analysis || result.data || result;
+        currentAnalysisData = analysis;
+
+        updateStatusBar(analysis);
+        displaySummary(analysis);
+        displayRecommendations(analysis);
+        displayTechnicalAnalysis(analysis);
+    const jsonDisplayEl = document.getElementById('jsonDisplay');
+    if (jsonDisplayEl) jsonDisplayEl.textContent = JSON.stringify(analysis, null, 2);
+
+        // Si le backend a renvoyé un graphe, le rendre
+        if (result && result.graph && Array.isArray(result.graph.nodes) && Array.isArray(result.graph.edges)) {
+            const graphData = JSON.parse(JSON.stringify(result.graph));
+            graphData.nodes.forEach(node => {
+                node.color = getNodeColor(node);
+                if (node.id === undefined || node.id === null) node.id = node.label || Math.random().toString(36).slice(2,9);
+                node.id = String(node.id);
+            });
+            renderGraph(graphData);
+            showMessage('Graphe rendu', 'success');
+        }
+
+        showMessage('Analyse reçue', 'success');
     } catch (error) {
         showMessage('Erreur: ' + error.message, 'error');
         console.error(error);
@@ -456,6 +504,7 @@ function renderGraph(graphData) {
 // Toggle l'affichage du JSON
 function toggleJsonView() {
     const jsonEl = document.getElementById('jsonDisplay');
+    if (!jsonEl) return;
     jsonEl.style.display = jsonEl.style.display === 'none' ? 'block' : 'none';
 }
 

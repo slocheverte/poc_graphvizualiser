@@ -5,6 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cybersecurity Graph Analyzer - Client POC</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Early interceptor to block any legacy requests to /files before main scripts load -->
+    <script>
+        (function(){
+            try {
+                const origFetch = window.fetch;
+                window.fetch = function(input, init){
+                    try {
+                        const url = (typeof input === 'string') ? input : (input && input.url);
+                        if (url && url.indexOf('/files') !== -1) {
+                            console.warn('[early-debug] Blocked fetch to /files ->', url);
+                            console.trace();
+                            return Promise.resolve(new Response(JSON.stringify({detail: 'blocked by client early interceptor'}), {status:404, headers: {'Content-Type':'application/json'}}));
+                        }
+                    } catch (e) { console.error('early fetch interceptor error', e); }
+                    return origFetch.apply(this, arguments);
+                };
+
+                const origXOpen = XMLHttpRequest.prototype.open;
+                const origXSend = XMLHttpRequest.prototype.send;
+                XMLHttpRequest.prototype.open = function(method, url){
+                    this.__openedUrl = url;
+                    return origXOpen.apply(this, arguments);
+                };
+                XMLHttpRequest.prototype.send = function(body){
+                    try {
+                        if (this.__openedUrl && String(this.__openedUrl).indexOf('/files') !== -1) {
+                            console.warn('[early-debug] Blocked XHR to /files ->', this.__openedUrl);
+                            console.trace();
+                            const self = this;
+                            setTimeout(() => {
+                                try { self.readyState = 4; self.status = 404; } catch(e){}
+                                if (typeof self.onreadystatechange === 'function') try{ self.onreadystatechange(); }catch(e){}
+                                if (typeof self.onload === 'function') try{ self.onload(); }catch(e){}
+                            }, 0);
+                            return;
+                        }
+                    } catch(e){ console.error('early XHR interceptor error', e); }
+                    return origXSend.apply(this, arguments);
+                };
+            } catch (e) {
+                console.error('Error installing early /files interceptor', e);
+            }
+        })();
+    </script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
@@ -36,18 +80,19 @@
 
         <div class="controls">
             <div class="control-group">
-                <label for="fileSelect">📁 Résultats d'analyse:</label>
-                <select id="fileSelect">
-                    <option value="">-- Sélectionner un fichier --</option>
-                </select>
-                <button onclick="loadAnalysis()" class="btn btn-primary">Charger</button>
-                <button onclick="refreshFileList()" class="btn btn-secondary">🔄</button>
+                <label for="upstreamInput">🔗 Upstream API:</label>
+                <input type="text" id="upstreamInput" placeholder="http://127.0.0.1:8000">
+                <button onclick="setUpstream()" class="btn btn-primary">Configurer</button>
+                <span id="upstreamStatus" style="margin-left:10px;color:#95a5a6;">(non configuré)</span>
+            </div>
+            <div class="control-group">
+                <!-- Liste déroulante supprimée : l'application utilise maintenant l'upstream et la saisie de question -->
             </div>
 
             <div class="control-group">
-                <label for="mockQuery">🧪 Générer une analyse mock:</label>
-                <input type="text" id="mockQuery" placeholder="Ex: Dispositifs critiques avec SMB exposé">
-                <button onclick="generateMockAnalysis()" class="btn btn-success">Générer Mock</button>
+                <label for="questionInput">❓ Question (analyze):</label>
+                <input type="text" id="questionInput" placeholder="Ex: What are Internet-Exposed Devices?">
+                <button onclick="analyzeQuestion()" class="btn btn-success">Analyser</button>
             </div>
         </div>
 
@@ -104,6 +149,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=2"></script>
+    <script src="script.js?v=3"></script>
 </body>
 </html>
