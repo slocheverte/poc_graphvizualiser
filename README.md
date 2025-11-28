@@ -1,5 +1,14 @@
 # 🔒 Cybersecurity Graph Analysis Client - POC
 
+Démarrage rapide :
+
+- Méthode recommandée (Windows) : lancez le helper `run_dev.ps1` qui automatise la création/activation du venv, l'installation minimale et le démarrage du backend+frontend :
+
+```powershell
+.\run_dev.ps1
+```
+
+
 ## 📋 Description
 
 POC léger pour visualiser et explorer des résultats d'analyse de graphes de cybersécurité (backend FastAPI + frontend D3). Le dépôt fournit :

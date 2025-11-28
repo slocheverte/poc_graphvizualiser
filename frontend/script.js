@@ -289,21 +289,41 @@ async function analyzeQuestion() {
     const question = (qEl && qEl.value) ? qEl.value : 'What are Internet-Exposed Devices?';
 
     try {
+        // Request include_data=true so the upstream (proxied by backend) will include the normalized graph in the response
         const response = await fetch(`${API_URL}/upstream/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question: question })
+            body: JSON.stringify({ question: question, include_data: true })
         });
 
         if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(err.detail || 'Erreur lors de la requête d\'analyse');
+            // Try to read JSON body, otherwise fallback to text
+            let body = null;
+            try {
+                const txt = await response.text();
+                try {
+                    body = JSON.parse(txt);
+                } catch (e) {
+                    body = txt;
+                }
+            } catch (e) {
+                body = '<no response body>';
+            }
+
+            const bodyMsg = (typeof body === 'object') ? (body.detail || JSON.stringify(body)) : String(body);
+            throw new Error(`HTTP ${response.status} ${response.statusText}: ${bodyMsg}`);
         }
 
-        const result = await response.json();
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (e) {
+            // Unexpected non-JSON success response
+            throw new Error(`Invalid JSON from upstream (HTTP ${response.status}): ${e.message}`);
+        }
 
-        // Normalise la réponse pour l'affichage
-        const analysis = result.analysis || result.data || result;
+    // Normalise la réponse pour l'affichage. Backend returns { analysis, graph, graph_present, data_included }
+    const analysis = result.analysis || result.data || result;
         currentAnalysisData = analysis;
 
         updateStatusBar(analysis);
@@ -313,7 +333,7 @@ async function analyzeQuestion() {
     const jsonDisplayEl = document.getElementById('jsonDisplay');
     if (jsonDisplayEl) jsonDisplayEl.textContent = JSON.stringify(analysis, null, 2);
 
-        // Si le backend a renvoyé un graphe, le rendre
+        // If the backend returned a graph (built from data.nodes/relationships), render it
         if (result && result.graph && Array.isArray(result.graph.nodes) && Array.isArray(result.graph.edges)) {
             const graphData = JSON.parse(JSON.stringify(result.graph));
             graphData.nodes.forEach(node => {
@@ -323,6 +343,26 @@ async function analyzeQuestion() {
             });
             renderGraph(graphData);
             showMessage('Graphe rendu', 'success');
+        } else if (analysis && analysis.data && analysis.data.nodes && analysis.data.relationships) {
+            // Fallback: if analysis contains a `data` field with nodes/relationships, convert to graph
+            const dat = analysis.data;
+            const nodes = (dat.nodes || []).map(n => ({
+                id: String(n.id ?? (n.properties && n.properties.id) ?? n.label ?? Math.random().toString(36).slice(2,9)),
+                label: n.labels ? (n.labels.join(', ') || String(n.id)) : (n.label || String(n.id)),
+                labels: n.labels || [],
+                properties: n.properties || {}
+            }));
+            const edges = (dat.relationships || []).map((r, i) => ({
+                id: r.id ?? `e${i}`,
+                from: String(r.start_id ?? r.from ?? r.start ?? ''),
+                to: String(r.end_id ?? r.to ?? r.end ?? ''),
+                label: r.type || r.relationship_type || ''
+            }));
+
+            const graphData = { nodes, edges };
+            graphData.nodes.forEach(node => node.color = getNodeColor(node));
+            renderGraph(graphData);
+            showMessage('Graphe rendu (from analysis.data)', 'success');
         }
 
         showMessage('Analyse reçue', 'success');

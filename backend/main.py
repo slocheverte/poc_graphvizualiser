@@ -193,7 +193,7 @@ async def root():
         "endpoints": {
             "POST /analysis/mock": "Génère un résultat d'analyse mock pour test (proxy vers upstream)",
             "POST /upstream/analyze": "Proxy vers l'upstream /analyze/ (retourne analysis + optional graph)",
-            "GET /upstream/last_query": "Proxy vers l'upstream /analyze/last_query",
+            "GET /upstream/last_query": "DEPRECATED: /analyze/last_query is decommissioned; use POST /upstream/analyze with include_data=true",
             "POST /data": "Proxy pour envoyer des données au backend upstream",
             "POST /config/upstream": "Configurer l'URL de l'upstream au runtime",
             "GET /config/upstream": "Récupérer la configuration actuelle de l'upstream",
@@ -261,66 +261,73 @@ async def upstream_analyze(payload: Dict[str, Any]):
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
+            # Ensure clients request the normalized graph directly from the upstream by setting include_data=True
+            if isinstance(payload, dict):
+                # don't override an explicit false, but prefer to request the data when not provided
+                if 'include_data' not in payload:
+                    payload['include_data'] = True
             resp = await client.post(analyze_url, json=payload)
             resp.raise_for_status()
             data = resp.json()
-
-            # normalize analysis content
+            # The upstream is expected to include normalized graph data in its POST response when include_data=true.
+            # We will prefer the `data` field in the returned JSON (which should contain nodes/relationships/meta).
             analysis = data.get('analysis') if isinstance(data, dict) and 'analysis' in data else data
 
-            # Only fetch last_query (graph) if analysis indicates success
             graph = None
             graph_present = False
-            should_fetch_graph = isinstance(analysis, dict) and analysis.get('status') == 'success'
 
-            if should_fetch_graph:
-                try:
-                    lq_resp = await client.get(last_query_url)
-                    lq_resp.raise_for_status()
-                    lq = lq_resp.json()
+            # If the upstream returned a `data` object with nodes/relationships, normalize it to graph nodes/edges
+            try:
+                dat = None
+                # analysis may be the full response dict or wrapped under 'analysis'
+                if isinstance(analysis, dict) and 'data' in analysis and isinstance(analysis['data'], dict):
+                    dat = analysis['data']
+                elif isinstance(data, dict) and 'data' in data and isinstance(data['data'], dict):
+                    dat = data['data']
 
-                    # If schema returns nodes/relationships, convert to nodes/edges
-                    if isinstance(lq, dict) and 'nodes' in lq and 'relationships' in lq:
-                        nodes = []
-                        edges = []
-                        for n in lq.get('nodes', []):
-                            nid = str(n.get('id'))
-                            labels = n.get('labels') if isinstance(n.get('labels'), list) else []
-                            props = n.get('properties', {}) if isinstance(n.get('properties'), dict) else {}
-                            label = ', '.join(labels) if labels else nid
-                            nodes.append({
-                                'id': nid,
-                                'label': label,
-                                'labels': labels,
-                                'properties': props
-                            })
+                if isinstance(dat, dict) and 'nodes' in dat and 'relationships' in dat:
+                    nodes = []
+                    edges = []
+                    for n in dat.get('nodes', []):
+                        nid = str(n.get('id')) if n.get('id') is not None else (n.get('properties', {}).get('id') if isinstance(n.get('properties', {}), dict) else None)
+                        nid = str(nid) if nid is not None else (n.get('label') or '')
+                        labels = n.get('labels') if isinstance(n.get('labels'), list) else []
+                        props = n.get('properties', {}) if isinstance(n.get('properties'), dict) else {}
+                        label = ', '.join(labels) if labels else (props.get('name') or nid)
+                        nodes.append({
+                            'id': nid,
+                            'label': label,
+                            'labels': labels,
+                            'properties': props
+                        })
 
-                        for r in lq.get('relationships', []):
-                            source = r.get('start_id')
-                            target = r.get('end_id')
-                            reltype = r.get('type') or r.get('relationship_type') or ''
-                            edges.append({
-                                'from': str(source) if source is not None else None,
-                                'to': str(target) if target is not None else None,
-                                'label': reltype,
-                                'properties': r.get('properties', {})
-                            })
+                    for r in dat.get('relationships', []):
+                        source = r.get('start_id') or r.get('from') or r.get('start')
+                        target = r.get('end_id') or r.get('to') or r.get('end')
+                        reltype = r.get('type') or r.get('relationship_type') or ''
+                        edges.append({
+                            'from': str(source) if source is not None else None,
+                            'to': str(target) if target is not None else None,
+                            'label': reltype,
+                            'properties': r.get('properties', {})
+                        })
 
-                        graph = {'nodes': nodes, 'edges': edges}
-                        graph_present = len(nodes) > 0
-                    else:
-                        # If last_query returns a raw neo4j payload, include it under last_query
-                        graph = {'last_query': lq}
+                    graph = {'nodes': nodes, 'edges': edges}
+                    graph_present = len(nodes) > 0
+                else:
+                    # If there is some `data` but not in nodes/relationships shape, include it raw under graph.last_query for debugging
+                    if dat is not None:
+                        graph = {'last_query': dat}
                         graph_present = True
-                except Exception:
-                    # ignore errors fetching last_query; return analysis at least
-                    graph = None
-                    graph_present = False
+            except Exception:
+                graph = None
+                graph_present = False
 
             result = {
                 'analysis': analysis,
                 'graph': graph,
-                'graph_present': bool(graph_present)
+                'graph_present': bool(graph_present),
+                'data_included': bool(graph_present)
             }
 
             return result
