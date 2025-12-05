@@ -2,7 +2,7 @@
   "use_cases": [
     {
       "id": "example_cybersec",
-      "name": "📋 Example: Critical Devices with SMB Exposure",
+      "name": "⭐ 📋 Example: Critical Devices with SMB Exposure",
       "description": "Mock example showing 3 critical devices with open SMB ports and vulnerabilities",
       "category": "Examples (Mock Data)",
       "cypher": "MATCH (d:Device {criticality: 'High'})-[r:CONNECTS_TO]->(target) WHERE r.port IN [445, 139] RETURN d, r, target",
@@ -10,7 +10,7 @@
     },
     {
       "id": "example_simple",
-      "name": "📋 Example: Simple Network Topology",
+      "name": "⭐ 📋 Example: Simple Network Topology",
       "description": "Simple example with basic network structure",
       "category": "Examples (Mock Data)",
       "cypher": "MATCH (n) RETURN n LIMIT 10",
@@ -18,7 +18,7 @@
     },
     {
       "id": "uc1_exposed_to_device",
-      "name": "Exposed Device to Specific Device",
+      "name": "⭐ Exposed Device to Specific Device",
       "description": "Find every Internet Exposed Device that has a reachable path to the device whose id is VwLogibecDCR01",
       "category": "Internet Exposure",
       "cypher": "MATCH full_path = (i:Internet)-[:EXPOSES]->(vip:VIP)-[:MAPPED_TO]->(sourceDevice:Device)-[:IS_SOURCE_OF|HAS_SOURCE|HAS_TARGET|TARGETED_BY*1..6]-(target:Device {id:'VwLogibecDCR01'}) RETURN DISTINCT sourceDevice AS InternetExposedDevice, nodes(full_path) AS PathNodes, relationships(full_path) AS PathRelationships, full_path AS path",
@@ -50,7 +50,7 @@
     },
     {
       "id": "uc5_top_subnets",
-      "name": "Top Subnets by Device Count",
+      "name": "⭐ Top Subnets by Device Count",
       "description": "Top 10 subnets ordered by device count",
       "category": "Network Statistics",
       "cypher": "MATCH p = (s:Subnet)-[:HAS_DEVICE]->(d:Device) RETURN s AS subnet, COUNT(d) AS device_count, p AS path ORDER BY device_count DESC LIMIT 10",

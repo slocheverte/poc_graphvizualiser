@@ -1,52 +1,244 @@
 {
   "analysis": {
-    "status": "warning",
-    "summary": "The query results indicate that the top subnets by device count have zero devices, suggesting potential data collection or query issues. This could hinder effective network monitoring and security management.",
-    "technical_analysis": "The query aimed to identify the most populated subnets by device count, but the results show zero devices for the top subnets. This anomaly suggests either a data collection issue, a misconfiguration in the network monitoring tools, or an error in the query logic. The absence of node and relationship data further supports the possibility of incomplete or incorrect data retrieval.",
-    "recommendations": [
-      "Verify the data collection process to ensure that device counts are accurately captured and reported.",
-      "Review and validate the query logic to ensure it aligns with the intended data retrieval objectives.",
-      "Check network monitoring tools and configurations to ensure they are correctly set up to capture device information.",
-      "Conduct a manual audit of the network to verify the actual device distribution across subnets.",
-      "Implement logging and alerting mechanisms to detect and notify of any anomalies in device count data."
-    ],
-    "confidence": "Medium",
-    "threat_level": "Medium",
-    "next_steps": [
-      "Investigate the data collection and query logic to identify and rectify any issues.",
-      "Perform a network audit to cross-verify the actual device distribution.",
-      "Ensure network monitoring tools are correctly configured and operational."
-    ],
-    "data_summary": "The query returned 10 records with zero devices for the top subnets, indicating potential issues with data accuracy or query execution.",
-    "insights": "Accurate device count data is crucial for effective network security management. The current results highlight a gap in data accuracy, which could lead to blind spots in network monitoring and increased vulnerability to undetected threats.",
-    "risk_assessment": "The risk is assessed as Medium due to the potential for undetected network vulnerabilities resulting from inaccurate device count data. This could lead to security incidents if not addressed promptly.",
-    "timestamp": "2025-12-05T02:58:19.841964",
-    "original_question": "\nShow me the top 10 subnets with the most devices.\nFor each subnet, show the device count and subnet details.\nOrder by device count in descending order.\nThis helps identify the most populated network segments.\n",
-    "query_status": "success",
+    "status": "success",
+    "summary": "Top Subnets by Device Count - Retrieved from Neo4j",
+    "timestamp": "2025-12-05T04:09:18.304490",
     "record_count": 10,
-    "executed_query": "MATCH full_path = (s:Subnet)-[:HAS_DEVICE*0..1]->(d:Device)\nRETURN s.id AS SubnetID, s.details AS SubnetDetails, COUNT(d) AS DeviceCount, full_path AS path\nORDER BY DeviceCount DESC LIMIT 10",
-    "transformed_query": "MATCH full_path = (s:Subnet)-[:HAS_DEVICE*0..1]->(d:Device)\nRETURN s.id AS SubnetID, s.details AS SubnetDetails, COUNT(d) AS DeviceCount, full_path AS path\nORDER BY DeviceCount DESC LIMIT 10",
-    "iterations_used": 3,
-    "system_info": {
-      "model": "gpt-4o",
-      "max_iterations": 3,
-      "timeout_seconds": 300
-    },
-    "data": {
-      "nodes": [],
-      "relationships": [],
-      "meta": {
-        "original_status": "success",
-        "original_record_count": 10,
-        "original_query": "MATCH full_path = (s:Subnet)-[:HAS_DEVICE*0..1]->(d:Device)\nRETURN s.id AS SubnetID, s.details AS SubnetDetails, COUNT(d) AS DeviceCount, full_path AS path\nORDER BY DeviceCount DESC LIMIT 10"
+    "node_count": 10,
+    "relationship_count": 0
+  },
+  "data": {
+    "nodes": [
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:298",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "organization": "NoInfo",
+          "ip": "192.168.0.0",
+          "is_remote": false,
+          "created_at": 1758893869117,
+          "location": "NoInfo",
+          "label": "VPN_S2S_TO_LVL_local_192.168.0.0/16",
+          "id": "VPN_S2S_TO_LVL_local_192.168.0.0/16",
+          "version": 1,
+          "mask": "255.255.0.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:252",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "organization": "NoInfo",
+          "ip": "10.0.0.0",
+          "is_remote": false,
+          "created_at": 1758893869117,
+          "location": "NoInfo",
+          "label": "MTL_WAN_RITM_10.0.0.0",
+          "id": "MTL_WAN_RITM_10.0.0.0",
+          "version": 1,
+          "mask": "255.0.0.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:170",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "darktrace_subnet": "MTL production",
+          "ip": "172.18.15.0",
+          "is_remote": false,
+          "groups": "[]",
+          "created_at": 1758893895796,
+          "source": "Fortigate",
+          "label": "DEV-SRV2-NEW__address",
+          "type": "subnet",
+          "uuid": "37be65d4-1920-51ef-f9c6-a2348190e7a5",
+          "version": 1,
+          "organization": "NoInfo",
+          "name": "DEV-SRV2-NEW__address",
+          "location": "NoInfo",
+          "vdom": "Logibec",
+          "id": "DEV-SRV2-NEW__address",
+          "mask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:169",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "darktrace_subnet": "172.18.13.0/24",
+          "ip": "172.18.13.0",
+          "is_remote": false,
+          "groups": "[]",
+          "created_at": 1758893895796,
+          "source": "Fortigate",
+          "label": "DEV-SRV-NEW__address",
+          "type": "subnet",
+          "uuid": "36f025e8-1920-51ef-78d4-f31e36915c53",
+          "version": 1,
+          "organization": "NoInfo",
+          "name": "DEV-SRV-NEW__address",
+          "location": "NoInfo",
+          "vdom": "Logibec",
+          "id": "DEV-SRV-NEW__address",
+          "mask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:172",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "darktrace_subnet": "Reseau certification",
+          "ip": "172.18.35.0",
+          "is_remote": false,
+          "groups": "[]",
+          "created_at": 1758893895796,
+          "source": "Fortigate",
+          "label": "CERT-SRV-NEW__address",
+          "type": "subnet",
+          "uuid": "39817050-1920-51ef-13fe-e80d72dad0b2",
+          "version": 1,
+          "organization": "NoInfo",
+          "name": "CERT-SRV-NEW__address",
+          "location": "NoInfo",
+          "vdom": "Logibec",
+          "id": "CERT-SRV-NEW__address",
+          "mask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:296",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "organization": "NoInfo",
+          "ip": "172.18.0.0",
+          "is_remote": false,
+          "created_at": 1758893869117,
+          "location": "NoInfo",
+          "label": "VPN_S2S_TO_LVL_local_172.18.0.0/16",
+          "id": "VPN_S2S_TO_LVL_local_172.18.0.0/16",
+          "version": 1,
+          "mask": "255.255.0.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:138",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "darktrace_subnet": "PROD-DEV-SRV-VM MTL",
+          "ip": "192.168.15.0",
+          "is_remote": false,
+          "groups": "[]",
+          "created_at": 1758893895796,
+          "source": "Fortigate",
+          "label": "PROD-DEV-SRV-VM__address",
+          "type": "subnet",
+          "uuid": "1b12dd0c-1920-51ef-91a3-fd8a7b29fede",
+          "version": 1,
+          "organization": "NoInfo",
+          "name": "PROD-DEV-SRV-VM__address",
+          "location": "NoInfo",
+          "vdom": "Logibec",
+          "id": "PROD-DEV-SRV-VM__address",
+          "mask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:159",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "darktrace_subnet": "IN-BAND-MGMT MTL",
+          "ip": "172.18.66.0",
+          "is_remote": false,
+          "groups": "[]",
+          "created_at": 1758893895796,
+          "source": "Fortigate",
+          "label": "IN-BAND-MGMT__address",
+          "type": "subnet",
+          "uuid": "2cd9cbb8-1920-51ef-1126-0c68d1096879",
+          "version": 1,
+          "organization": "NoInfo",
+          "name": "IN-BAND-MGMT__address",
+          "location": "NoInfo",
+          "vdom": "Logibec",
+          "id": "IN-BAND-MGMT__address",
+          "mask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:135",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "darktrace_subnet": "Production Server 75Q MTL",
+          "ip": "192.168.11.0",
+          "is_remote": false,
+          "groups": "[]",
+          "created_at": 1758893895796,
+          "source": "Fortigate",
+          "label": "PROD-SRV__address",
+          "type": "subnet",
+          "uuid": "18b8308e-1920-51ef-e98a-810c171d8431",
+          "version": 1,
+          "organization": "NoInfo",
+          "name": "PROD-SRV__address",
+          "location": "NoInfo",
+          "vdom": "Logibec",
+          "id": "PROD-SRV__address",
+          "mask": "255.255.255.0"
+        }
+      },
+      {
+        "id": "4:c21033e0-e210-4cfb-91fa-92e87910b655:137",
+        "labels": [
+          "Subnet"
+        ],
+        "properties": {
+          "country": "NoInfo",
+          "darktrace_subnet": "DEV-SRV MTL",
+          "ip": "192.168.13.0",
+          "is_remote": false,
+          "groups": "[]",
+          "created_at": 1758893895796,
+          "source": "Fortigate",
+          "label": "DEV-SRV__address",
+          "type": "subnet",
+          "uuid": "1a4366b2-1920-51ef-dbe3-dfbca59e8463",
+          "version": 1,
+          "organization": "NoInfo",
+          "name": "DEV-SRV__address",
+          "location": "NoInfo",
+          "vdom": "Logibec",
+          "id": "DEV-SRV__address",
+          "mask": "255.255.255.0"
+        }
       }
-    },
-    "data_included": true
-  },
-  "graph": {
-    "nodes": [],
-    "edges": []
-  },
-  "graph_present": false,
-  "data_included": false
+    ],
+    "relationships": []
+  }
 }
