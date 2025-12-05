@@ -1,0 +1,33 @@
+import json
+
+data = {
+  "analysis": {
+    "status": "success",
+    "summary": "Simple network topology with 5 devices",
+    "technical_analysis": "Basic network structure",
+    "recommendations": ["Review network segmentation"],
+    "confidence": "High",
+    "threat_level": "Low",
+    "record_count": 5
+  },
+  "data": {
+    "nodes": [
+      {"id": "router-01", "labels": ["Device", "Router"], "properties": {"name": "Router", "ip": "192.168.1.1"}},
+      {"id": "fw-01", "labels": ["Device", "Firewall"], "properties": {"name": "Firewall", "ip": "192.168.1.254"}},
+      {"id": "srv-01", "labels": ["Device", "Server"], "properties": {"name": "Server", "ip": "192.168.1.10"}},
+      {"id": "ws-01", "labels": ["Device"], "properties": {"name": "Workstation1", "ip": "192.168.1.50"}},
+      {"id": "ws-02", "labels": ["Device"], "properties": {"name": "Workstation2", "ip": "192.168.1.51"}}
+    ],
+    "relationships": [
+      {"start_id": "router-01", "end_id": "fw-01", "type": "CONNECTED_TO", "properties": {}},
+      {"start_id": "fw-01", "end_id": "srv-01", "type": "PROTECTS", "properties": {}},
+      {"start_id": "ws-01", "end_id": "srv-01", "type": "ACCESSES", "properties": {}},
+      {"start_id": "ws-02", "end_id": "srv-01", "type": "ACCESSES", "properties": {}}
+    ]
+  }
+}
+
+with open('data/example.json', 'w', encoding='utf-8') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+
+print("File created successfully")

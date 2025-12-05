@@ -1,0 +1,39 @@
+{
+  "analysis": {
+    "status": "error",
+    "summary": "Analysis failed: All refinement iterations failed",
+    "technical_analysis": "Critical error during analysis: All refinement iterations failed",
+    "recommendations": [
+      "Check system logs for detailed error information",
+      "Verify all system components are working correctly",
+      "Consider simplifying the question if it's too complex",
+      "Contact system administrator if the issue persists"
+    ],
+    "confidence": "Low",
+    "threat_level": "Info",
+    "next_steps": "Resolve the error and retry the analysis",
+    "data_summary": "No data analyzed due to error",
+    "insights": "No insights available due to error",
+    "risk_assessment": "Cannot assess risk due to error",
+    "original_question": "\nFind all SSL VPN ranges that have broad reach across the network.\nIdentify SSL VPN pools that can reach many different targets.\nShow me the number of reachable targets for each SSL range and the types of targets.\nThis helps identify potential lateral movement risks.\nOrder by reach count descending.\n",
+    "timestamp": "2025-12-05T02:57:48.030437",
+    "iterations_used": 0,
+    "error_details": "All refinement iterations failed",
+    "data": {
+      "nodes": [],
+      "relationships": [],
+      "meta": {
+        "original_status": "success",
+        "original_record_count": 0,
+        "original_query": "MATCH (vpn:SSLVPNRange)-[:REACHES]->(target) OPTIONAL MATCH (target)-[:HAS_TYPE]->(type) RETURN vpn.name AS VPN_Range, COUNT(DISTINCT target) AS Reach_Count, COLLECT(DISTINCT type.name) AS Target_Types ORDER BY Reach_Count DESC"
+      }
+    },
+    "data_included": true
+  },
+  "graph": {
+    "nodes": [],
+    "edges": []
+  },
+  "graph_present": false,
+  "data_included": false
+}

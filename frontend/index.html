@@ -85,14 +85,20 @@
                 <button onclick="setUpstream()" class="btn btn-primary">Configurer</button>
                 <span id="upstreamStatus" style="margin-left:10px;color:#95a5a6;">(non configuré)</span>
             </div>
-            <div class="control-group">
-                <!-- Liste déroulante supprimée : l'application utilise maintenant l'upstream et la saisie de question -->
-            </div>
 
             <div class="control-group">
                 <label for="questionInput">❓ Question (analyze):</label>
                 <input type="text" id="questionInput" placeholder="Ex: What are Internet-Exposed Devices?">
                 <button onclick="analyzeQuestion()" class="btn btn-success">Analyser</button>
+            </div>
+
+            <div class="control-group" style="border-top: 2px solid #3498db; padding-top: 15px; margin-top: 15px;">
+                <label for="useCaseSelect">🧪 Use Cases (Mode Test):</label>
+                <select id="useCaseSelect" onchange="onUseCaseSelected()">
+                    <option value="">-- Sélectionner un use case --</option>
+                </select>
+                <button onclick="loadSelectedUseCase()" class="btn btn-info">Charger Use Case</button>
+                <span id="useCaseStatus" style="margin-left:10px;color:#95a5a6;"></span>
             </div>
         </div>
 

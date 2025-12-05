@@ -60,6 +60,7 @@ app.add_middleware(
 # Chemin vers le dossier data
 DATA_DIR = Path(__file__).parent.parent / "data"
 SCHEMA_PATH = Path(__file__).parent.parent / "response_schema.json"
+USE_CASES_PATH = DATA_DIR / "use_cases.json"
 
 
 def require_upstream() -> str:
@@ -197,7 +198,9 @@ async def root():
             "POST /data": "Proxy pour envoyer des données au backend upstream",
             "POST /config/upstream": "Configurer l'URL de l'upstream au runtime",
             "GET /config/upstream": "Récupérer la configuration actuelle de l'upstream",
-            "GET /schema": "Récupère le schéma JSON de réponse"
+            "GET /schema": "Récupère le schéma JSON de réponse",
+            "GET /use-cases": "Liste tous les use cases disponibles",
+            "GET /use-cases/{use_case_id}": "Charge les données pré-enregistrées d'un use case spécifique"
         }
     }
 
@@ -395,6 +398,163 @@ async def get_graph_data(filename: str):
 async def get_analysis_stats(filename: str):
     # Removed: per-file stats retrieval is unsupported. Use analysis responses returned by POST /upstream/analyze.
     raise HTTPException(status_code=404, detail="Endpoint removed: per-file stats retrieval is unsupported. Use POST /upstream/analyze.")
+
+
+@app.get("/use-cases")
+async def get_use_cases():
+    """Récupère la liste de tous les use cases disponibles"""
+    try:
+        if not USE_CASES_PATH.exists():
+            raise HTTPException(status_code=404, detail="Fichier use_cases.json non trouvé")
+        
+        with open(USE_CASES_PATH, "r", encoding="utf-8") as f:
+            use_cases = json.load(f)
+        
+        return use_cases
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la lecture des use cases: {str(e)}")
+
+
+@app.get("/use-cases/{use_case_id}")
+async def get_use_case_data(use_case_id: str):
+    """Charge les données pré-enregistrées d'un use case spécifique"""
+    try:
+        # Charger la liste des use cases
+        if not USE_CASES_PATH.exists():
+            raise HTTPException(status_code=404, detail="Fichier use_cases.json non trouvé")
+        
+        with open(USE_CASES_PATH, "r", encoding="utf-8") as f:
+            use_cases_data = json.load(f)
+        
+        # Trouver le use case demandé
+        use_case = None
+        for uc in use_cases_data.get("use_cases", []):
+            if uc.get("id") == use_case_id:
+                use_case = uc
+                break
+        
+        if not use_case:
+            raise HTTPException(status_code=404, detail=f"Use case '{use_case_id}' non trouvé")
+        
+        # Charger le fichier de réponse
+        response_file = use_case.get("response_file")
+        if not response_file:
+            raise HTTPException(status_code=404, detail=f"Pas de fichier de réponse défini pour ce use case")
+        
+        response_path = DATA_DIR / response_file
+        if not response_path.exists():
+            raise HTTPException(status_code=404, detail=f"Fichier de réponse non trouvé: {response_file}")
+        
+        with open(response_path, "r", encoding="utf-8") as f:
+            response_data = json.load(f)
+        
+        # Normaliser la structure de la réponse pour qu'elle soit compatible avec le frontend
+        graph = None
+        graph_present = False
+        analysis = None
+        
+        try:
+            # Extraire l'analyse si elle existe
+            if isinstance(response_data, dict) and 'analysis' in response_data:
+                analysis = response_data['analysis']
+            
+            # Chercher les nodes et relationships à différents endroits
+            nodes_data = []
+            relationships_data = []
+            
+            # Cas 1: directement dans response_data
+            if 'nodes' in response_data and 'relationships' in response_data:
+                nodes_data = response_data.get('nodes', [])
+                relationships_data = response_data.get('relationships', [])
+            # Cas 2: dans response_data.data
+            elif isinstance(response_data, dict) and 'data' in response_data:
+                data_obj = response_data['data']
+                if isinstance(data_obj, dict):
+                    nodes_data = data_obj.get('nodes', [])
+                    relationships_data = data_obj.get('relationships', [])
+            # Cas 3: dans response_data.analysis.data
+            elif isinstance(analysis, dict) and 'data' in analysis:
+                data_obj = analysis['data']
+                if isinstance(data_obj, dict):
+                    nodes_data = data_obj.get('nodes', [])
+                    relationships_data = data_obj.get('relationships', [])
+            
+            # Normaliser les nodes et edges
+            nodes = []
+            edges = []
+            
+            for n in nodes_data if isinstance(nodes_data, list) else []:
+                if not isinstance(n, dict):
+                    continue
+                nid = str(n.get('id')) if n.get('id') is not None else (n.get('properties', {}).get('id') if isinstance(n.get('properties', {}), dict) else None)
+                nid = str(nid) if nid is not None else (n.get('label') or f'node_{len(nodes)}')
+                labels = n.get('labels') if isinstance(n.get('labels'), list) else []
+                props = n.get('properties', {}) if isinstance(n.get('properties'), dict) else {}
+                label = ', '.join(labels) if labels else (props.get('name') or nid)
+                
+                nodes.append({
+                    'id': nid,
+                    'label': label,
+                    'labels': labels,
+                    'properties': props
+                })
+            
+            for r in relationships_data if isinstance(relationships_data, list) else []:
+                if not isinstance(r, dict):
+                    continue
+                source = r.get('start_id') or r.get('from') or r.get('start')
+                target = r.get('end_id') or r.get('to') or r.get('end')
+                reltype = r.get('type') or r.get('relationship_type') or ''
+                
+                edges.append({
+                    'from': str(source) if source is not None else None,
+                    'to': str(target) if target is not None else None,
+                    'label': reltype,
+                    'properties': r.get('properties', {})
+                })
+            
+            graph = {'nodes': nodes, 'edges': edges}
+            graph_present = len(nodes) > 0
+            
+        except Exception as e:
+            print(f"Erreur lors de la normalisation du graphe: {e}")
+            import traceback
+            traceback.print_exc()
+            graph = {'nodes': [], 'edges': []}
+            graph_present = False
+        
+        # Utiliser l'analyse existante ou créer une analyse synthétique
+        if not analysis:
+            analysis = {
+                'status': 'success',
+                'summary': f"Use case: {use_case.get('name')}",
+                'technical_analysis': use_case.get('description', ''),
+                'recommendations': [f"Ceci est un use case pré-enregistré: {use_case.get('name')}"],
+                'query': use_case.get('cypher', ''),
+                'timestamp': datetime.now().isoformat(),
+                'original_question': use_case.get('name'),
+                'record_count': len(graph.get('nodes', [])) if isinstance(graph, dict) and 'nodes' in graph else 0
+            }
+        else:
+            # Mettre à jour le record_count avec le nombre réel de nodes
+            if isinstance(graph, dict) and 'nodes' in graph:
+                analysis['record_count'] = len(graph.get('nodes', []))
+
+        
+        return {
+            'use_case': use_case,
+            'analysis': analysis,
+            'graph': graph,
+            'graph_present': graph_present,
+            'data_included': graph_present
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement du use case: {str(e)}")
 
 
 if __name__ == "__main__":

@@ -60,6 +60,7 @@ let currentAnalysisData = null;
 document.addEventListener('DOMContentLoaded', () => {
     initNetwork();
     loadUpstreamConfig();
+    loadUseCases();
 });
 
 
@@ -280,6 +281,58 @@ function displayTechnicalAnalysis(data) {
         });
         html += '</ul>';
         if (techDiv) techDiv.innerHTML += html;
+    }
+}
+
+// Fonction centralisée pour afficher une analyse et son graphe
+function displayAnalysis(analysis, graph) {
+    // Mettre à jour les données courantes
+    currentAnalysisData = analysis;
+    
+    // Afficher les informations d'analyse
+    updateStatusBar(analysis);
+    displaySummary(analysis);
+    displayRecommendations(analysis);
+    displayTechnicalAnalysis(analysis);
+    
+    // Afficher le JSON
+    const jsonDisplayEl = document.getElementById('jsonDisplay');
+    if (jsonDisplayEl) jsonDisplayEl.textContent = JSON.stringify(analysis, null, 2);
+    
+    // Afficher le graphe si disponible
+    if (graph && Array.isArray(graph.nodes) && Array.isArray(graph.edges)) {
+        const graphData = JSON.parse(JSON.stringify(graph));
+        graphData.nodes.forEach(node => {
+            node.color = getNodeColor(node);
+            if (node.id === undefined || node.id === null) {
+                node.id = node.label || Math.random().toString(36).slice(2,9);
+            }
+            node.id = String(node.id);
+        });
+        renderGraph(graphData);
+        showMessage('Graphe rendu', 'success');
+    } else if (analysis && analysis.data && analysis.data.nodes && analysis.data.relationships) {
+        // Fallback: si analysis contient un champ 'data' avec nodes/relationships
+        const dat = analysis.data;
+        const nodes = (dat.nodes || []).map(n => ({
+            id: String(n.id ?? (n.properties && n.properties.id) ?? n.label ?? Math.random().toString(36).slice(2,9)),
+            label: n.labels ? (n.labels.join(', ') || String(n.id)) : (n.label || String(n.id)),
+            labels: n.labels || [],
+            properties: n.properties || {}
+        }));
+        const edges = (dat.relationships || []).map((r, i) => ({
+            id: r.id ?? `e${i}`,
+            from: String(r.start_id ?? r.from ?? r.start ?? ''),
+            to: String(r.end_id ?? r.to ?? r.end ?? ''),
+            label: r.type || r.relationship_type || ''
+        }));
+        
+        const graphData = { nodes, edges };
+        graphData.nodes.forEach(node => node.color = getNodeColor(node));
+        renderGraph(graphData);
+        showMessage('Graphe rendu', 'success');
+    } else {
+        showMessage('Aucune donnée de graphe disponible', 'warning');
     }
 }
 
@@ -596,3 +649,128 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+
+// ============================================================================
+// USE CASES MANAGEMENT - Pré-enregistrés pour tests sans API CSG
+// ============================================================================
+
+let availableUseCases = [];
+
+// Charge la liste des use cases au démarrage
+async function loadUseCases() {
+    try {
+        const resp = await fetch(`${API_URL}/use-cases`);
+        if (!resp.ok) {
+            throw new Error('Impossible de charger les use cases');
+        }
+        
+        const data = await resp.json();
+        availableUseCases = data.use_cases || [];
+        
+        // Populer le dropdown
+        const select = document.getElementById('useCaseSelect');
+        if (select) {
+            select.innerHTML = '<option value="">-- Sélectionner un use case --</option>';
+            
+            // Grouper par catégorie
+            const categories = {};
+            availableUseCases.forEach(uc => {
+                const cat = uc.category || 'Other';
+                if (!categories[cat]) categories[cat] = [];
+                categories[cat].push(uc);
+            });
+            
+            // Ajouter les options groupées
+            Object.keys(categories).sort().forEach(cat => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = cat;
+                categories[cat].forEach(uc => {
+                    const option = document.createElement('option');
+                    option.value = uc.id;
+                    option.textContent = uc.name;
+                    option.title = uc.description;
+                    optgroup.appendChild(option);
+                });
+                select.appendChild(optgroup);
+            });
+        }
+        
+        console.log(`Loaded ${availableUseCases.length} use cases`);
+    } catch (e) {
+        console.error('Error loading use cases:', e);
+        showMessage('Impossible de charger les use cases: ' + e.message, 'warning');
+    }
+}
+
+// Appelé quand un use case est sélectionné dans le dropdown
+function onUseCaseSelected() {
+    const select = document.getElementById('useCaseSelect');
+    const status = document.getElementById('useCaseStatus');
+    
+    if (select && select.value) {
+        const uc = availableUseCases.find(u => u.id === select.value);
+        if (uc && status) {
+            status.textContent = `(${uc.category || 'N/A'})`;
+            status.style.color = '#3498db';
+        }
+    } else if (status) {
+        status.textContent = '';
+    }
+}
+
+// Charge et affiche le use case sélectionné
+async function loadSelectedUseCase() {
+    const select = document.getElementById('useCaseSelect');
+    if (!select || !select.value) {
+        showMessage('Veuillez sélectionner un use case', 'warning');
+        return;
+    }
+    
+    const useCaseId = select.value;
+    const status = document.getElementById('useCaseStatus');
+    
+    try {
+        if (status) {
+            status.textContent = '(chargement...)';
+            status.style.color = '#f39c12';
+        }
+        
+        const resp = await fetch(`${API_URL}/use-cases/${useCaseId}`);
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || 'Erreur lors du chargement du use case');
+        }
+        
+        const data = await resp.json();
+        
+        // Afficher les informations du use case dans le champ question
+        const questionInput = document.getElementById('questionInput');
+        if (questionInput && data.use_case) {
+            questionInput.value = data.use_case.name;
+        }
+        
+        // Traiter les données comme une analyse normale
+        if (data.analysis) {
+            currentAnalysisData = data.analysis;
+            displayAnalysis(data.analysis, data.graph);
+            
+            if (status) {
+                status.textContent = '✓ Chargé';
+                status.style.color = '#27ae60';
+            }
+            
+            showMessage(`Use case "${data.use_case.name}" chargé avec succès`, 'success');
+        } else {
+            throw new Error('Données invalides dans le use case');
+        }
+    } catch (e) {
+        console.error('Error loading use case:', e);
+        showMessage('Erreur: ' + e.message, 'error');
+        
+        if (status) {
+            status.textContent = '✗ Erreur';
+            status.style.color = '#e74c3c';
+        }
+    }
+}

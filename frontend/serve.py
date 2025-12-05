@@ -18,7 +18,9 @@ def main():
     server.watch(os.path.join(root, 'style.css'))
 
     # Serve the frontend directory on port 3000
-    server.serve(root=root, port=3000, host='0.0.0.0', open_url_delay=1)
+    # Use 'localhost' instead of '0.0.0.0' for Windows compatibility
+    print("\n✅ Frontend server starting at http://localhost:3000/\n")
+    server.serve(root=root, port=3000, host='localhost', open_url_delay=1)
 
 
 if __name__ == '__main__':

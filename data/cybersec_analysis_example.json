@@ -1,170 +1,111 @@
 {
-  "status": "success",
-  "summary": "3 dispositifs critiques exposés détectés avec ports SMB ouverts",
-  "technical_analysis": "L'analyse du graphe de sécurité a identifié 3 nœuds Device avec une criticité élevée (criticality=High) ayant des ports 445/139 ouverts, indiquant une exposition potentielle via SMB. Ces dispositifs sont interconnectés et forment un cluster vulnérable nécessitant une attention immédiate.",
-  "recommendations": [
-    "Isoler immédiatement les dispositifs critiques du réseau principal",
-    "Appliquer les correctifs de sécurité pour SMBv1",
-    "Configurer des règles de pare-feu strictes",
-    "Activer la surveillance en temps réel sur ces nœuds"
-  ],
-  "recommendations_with_impact": [
-    {
-      "recommendation": "Isoler les devices critiques du réseau principal",
-      "impact": "High",
-      "effort": "Medium",
-      "priority": 1
-    },
-    {
-      "recommendation": "Désactiver SMBv1 et appliquer les patchs",
-      "impact": "High",
-      "effort": "Low",
-      "priority": 2
-    },
-    {
-      "recommendation": "Implémenter une segmentation réseau",
-      "impact": "Medium",
-      "effort": "High",
-      "priority": 3
-    }
-  ],
-  "confidence": "High",
-  "threat_level": "High",
-  "next_steps": [
-    "Audit de sécurité complet des 3 dispositifs identifiés",
-    "Vérification des logs d'accès pour activités suspectes",
-    "Planification d'une mise à jour système coordonnée"
-  ],
-  "data_summary": "3 nœuds Device critiques, 5 relations CONNECTS_TO, 2 vulnérabilités CVE identifiées",
-  "insights": [
-    "Les 3 dispositifs partagent la même configuration vulnérable",
-    "Le trafic SMB est non chiffré entre les nœuds",
-    "Présence de comptes administrateurs par défaut"
-  ],
-  "risk_assessment": {
-    "overall": "Risque élevé d'attaque latérale via SMB",
-    "breakdown": {
-      "network_exposure": "High",
-      "configuration_weakness": "High",
-      "patch_level": "Medium",
-      "monitoring": "Low"
-    }
+  "analysis": {
+    "status": "success",
+    "summary": "3 dispositifs critiques exposés détectés avec ports SMB ouverts",
+    "technical_analysis": "L'analyse du graphe de sécurité a identifié 3 nœuds Device avec une criticité élevée (criticality=High) ayant des ports 445/139 ouverts, indiquant une exposition potentielle via SMB. Ces dispositifs sont interconnectés et forment un cluster vulnérable nécessitant une attention immédiate.",
+    "recommendations": [
+      "Isoler immédiatement les dispositifs critiques du réseau principal",
+      "Appliquer les correctifs de sécurité pour SMBv1",
+      "Configurer des règles de pare-feu strictes",
+      "Activer la surveillance en temps réel sur ces nœuds"
+    ],
+    "confidence": "High",
+    "threat_level": "High",
+    "data_summary": "4 nœuds (3 devices + 1 vulnérabilité), 4 relations",
+    "timestamp": "2025-11-07T10:30:45.123456Z",
+    "original_question": "Identifier tous les dispositifs critiques avec des ports SMB exposés",
+    "record_count": 4
   },
-  "timestamp": "2025-11-07T10:30:45.123456Z",
-  "original_question": "Identifier tous les dispositifs critiques avec des ports SMB exposés",
-  "original_intent": "security_audit",
-  "query": "MATCH (d:Device {criticality: 'High'})-[r:CONNECTS_TO]->(target) WHERE r.port IN [445, 139] RETURN d, r, target",
-  "query_rationale": "Recherche de dispositifs critiques avec exposition SMB pour évaluation des risques",
-  "query_status": "completed",
-  "record_count": 8,
-  "iterations_used": 2,
-  "execution_time": 1.234,
-  "system_info": {
-    "neo4j_version": "5.12.0",
-    "database": "cybersecurity-prod",
-    "node_count": 1547,
-    "relationship_count": 3892
-  },
-  "data": [
-    {
-      "type": "node",
-      "id": "device-123",
-      "labels": ["Device", "Server"],
-      "properties": {
+  "data": {
+    "nodes": [
+      {
         "id": "device-123",
-        "ip": "192.168.11.12",
-        "hostname": "srv-finance-01",
-        "criticality": "High",
-        "os": "Windows Server 2016",
-        "department": "Finance",
-        "last_scan": "2025-11-06T18:00:00Z"
-      }
-    },
-    {
-      "type": "node",
-      "id": "device-124",
-      "labels": ["Device", "Server"],
-      "properties": {
+        "labels": ["Device", "Server"],
+        "properties": {
+          "id": "device-123",
+          "ip": "192.168.11.12",
+          "hostname": "srv-finance-01",
+          "criticality": "High",
+          "os": "Windows Server 2016",
+          "department": "Finance"
+        }
+      },
+      {
         "id": "device-124",
-        "ip": "192.168.11.13",
-        "hostname": "srv-hr-01",
-        "criticality": "High",
-        "os": "Windows Server 2016",
-        "department": "HR"
-      }
-    },
-    {
-      "type": "node",
-      "id": "device-125",
-      "labels": ["Device", "Workstation"],
-      "properties": {
+        "labels": ["Device", "Server"],
+        "properties": {
+          "id": "device-124",
+          "ip": "192.168.11.13",
+          "hostname": "srv-hr-01",
+          "criticality": "High",
+          "os": "Windows Server 2016",
+          "department": "HR"
+        }
+      },
+      {
         "id": "device-125",
-        "ip": "192.168.11.20",
-        "hostname": "ws-admin-01",
-        "criticality": "High",
-        "os": "Windows 10",
-        "user": "admin-user"
+        "labels": ["Device", "Workstation"],
+        "properties": {
+          "id": "device-125",
+          "ip": "192.168.11.20",
+          "hostname": "ws-admin-01",
+          "criticality": "High",
+          "os": "Windows 10",
+          "user": "admin-user"
+        }
+      },
+      {
+        "id": "vuln-001",
+        "labels": ["Vulnerability", "CVE"],
+        "properties": {
+          "cve_id": "CVE-2017-0144",
+          "name": "EternalBlue",
+          "severity": "Critical",
+          "cvss_score": 9.8
+        }
       }
-    },
-    {
-      "type": "relationship",
-      "relationship_type": "CONNECTS_TO",
-      "from": "device-123",
-      "to": "device-124",
-      "properties": {
-        "port": 445,
-        "protocol": "SMB",
-        "frequency": "high",
-        "encrypted": false
+    ],
+    "relationships": [
+      {
+        "start_id": "device-123",
+        "end_id": "device-124",
+        "type": "CONNECTS_TO",
+        "properties": {
+          "port": 445,
+          "protocol": "SMB",
+          "frequency": "high",
+          "encrypted": false
+        }
+      },
+      {
+        "start_id": "device-125",
+        "end_id": "device-123",
+        "type": "CONNECTS_TO",
+        "properties": {
+          "port": 139,
+          "protocol": "NetBIOS",
+          "frequency": "medium",
+          "encrypted": false
+        }
+      },
+      {
+        "start_id": "device-123",
+        "end_id": "vuln-001",
+        "type": "HAS_VULNERABILITY",
+        "properties": {
+          "discovered_date": "2025-11-05",
+          "status": "open"
+        }
+      },
+      {
+        "start_id": "device-124",
+        "end_id": "vuln-001",
+        "type": "HAS_VULNERABILITY",
+        "properties": {
+          "discovered_date": "2025-11-05",
+          "status": "open"
+        }
       }
-    },
-    {
-      "type": "relationship",
-      "relationship_type": "CONNECTS_TO",
-      "from": "device-125",
-      "to": "device-123",
-      "properties": {
-        "port": 139,
-        "protocol": "NetBIOS",
-        "frequency": "medium",
-        "encrypted": false
-      }
-    },
-    {
-      "type": "node",
-      "id": "vuln-001",
-      "labels": ["Vulnerability", "CVE"],
-      "properties": {
-        "cve_id": "CVE-2017-0144",
-        "name": "EternalBlue",
-        "severity": "Critical",
-        "cvss_score": 9.8
-      }
-    },
-    {
-      "type": "relationship",
-      "relationship_type": "HAS_VULNERABILITY",
-      "from": "device-123",
-      "to": "vuln-001",
-      "properties": {
-        "discovered_date": "2025-11-05",
-        "status": "open"
-      }
-    },
-    {
-      "type": "relationship",
-      "relationship_type": "HAS_VULNERABILITY",
-      "from": "device-124",
-      "to": "vuln-001",
-      "properties": {
-        "discovered_date": "2025-11-05",
-        "status": "open"
-      }
-    }
-  ],
-  "provenance": {
-    "analysis_engine": "CyberGraph Analyzer v2.1",
-    "analyst": "automated-system",
-    "data_sources": ["network_scan", "vulnerability_db", "siem_logs"]
+    ]
   }
 }

@@ -1,0 +1,68 @@
+{
+  "use_cases": [
+    {
+      "id": "example_cybersec",
+      "name": "📋 Example: Critical Devices with SMB Exposure",
+      "description": "Mock example showing 3 critical devices with open SMB ports and vulnerabilities",
+      "category": "Examples (Mock Data)",
+      "cypher": "MATCH (d:Device {criticality: 'High'})-[r:CONNECTS_TO]->(target) WHERE r.port IN [445, 139] RETURN d, r, target",
+      "response_file": "cybersec_analysis_example.json"
+    },
+    {
+      "id": "example_simple",
+      "name": "📋 Example: Simple Network Topology",
+      "description": "Simple example with basic network structure",
+      "category": "Examples (Mock Data)",
+      "cypher": "MATCH (n) RETURN n LIMIT 10",
+      "response_file": "example.json"
+    },
+    {
+      "id": "uc1_exposed_to_device",
+      "name": "Exposed Device to Specific Device",
+      "description": "Find every Internet Exposed Device that has a reachable path to the device whose id is VwLogibecDCR01",
+      "category": "Internet Exposure",
+      "cypher": "MATCH full_path = (i:Internet)-[:EXPOSES]->(vip:VIP)-[:MAPPED_TO]->(sourceDevice:Device)-[:IS_SOURCE_OF|HAS_SOURCE|HAS_TARGET|TARGETED_BY*1..6]-(target:Device {id:'VwLogibecDCR01'}) RETURN DISTINCT sourceDevice AS InternetExposedDevice, nodes(full_path) AS PathNodes, relationships(full_path) AS PathRelationships, full_path AS path",
+      "response_file": "uc1_exposed_to_device_response.json"
+    },
+    {
+      "id": "uc2_path_between_nodes",
+      "name": "Paths: MTL_VPN_SSL_RANGE ↔ VwLogibecDCR01",
+      "description": "Find paths between the MTL_VPN_SSL_RANGE and the device with id VwLogibecDCR01",
+      "category": "Path Analysis",
+      "cypher": "MATCH full_path = shortestPath((src:IPRange {id: 'MTL_VPN_SSL_RANGE'})-[:IS_SOURCE_OF|HAS_SOURCE|HAS_TARGET|TARGETED_BY|MEMBER_OF|HAS_MEMBER|IPSEC_TUNNEL|IPSEC_TUNNEL_INVERSE*1..6]-(dst:Device {id: 'VwLogibecDCR01'})) RETURN full_path AS path",
+      "response_file": "uc2_path_between_nodes_response.json"
+    },
+    {
+      "id": "uc3_vpn_to_critical",
+      "name": "VPN SSL Range → Critical Devices",
+      "description": "Return network paths that originate at all VPN SSL RANGE and lead to nodes classified as Critical",
+      "category": "VPN Analysis",
+      "cypher": "MATCH full_path = (src:IPRange)-[:IS_SOURCE_OF|HAS_TARGET*1..5]-(target:Device) WHERE (src.id CONTAINS 'VPN_SSL_RANGE' OR src.label CONTAINS 'VPN_SSL_RANGE') AND target.criticality_level = '2.0' RETURN DISTINCT full_path, src.id AS source_range, target.criticality_level AS criticality, target.category AS target_category, full_path AS path LIMIT 50",
+      "response_file": "uc3_vpn_to_critical_response.json"
+    },
+    {
+      "id": "uc4_ssl_vpn_broad_reach",
+      "name": "SSL VPN Ranges with Broad Reach",
+      "description": "SSL pools that can reach many targets (potential lateral-movement risk)",
+      "category": "Risk Analysis",
+      "cypher": "MATCH full_path = (ssl:SSLrange)-[:IS_SOURCE_OF]->(p:Policy)-[:HAS_TARGET]->(t) WHERE (t:Device OR t:Subnet OR t:Group OR t:IPRange OR t:VIP OR t:VIPGroup) WITH ssl, collect(DISTINCT t) AS reachable_targets, count(DISTINCT t) AS reach_count, collect(DISTINCT full_path) AS paths RETURN ssl.label AS ssl_range, reach_count, [n IN reachable_targets | labels(n)[0]] AS target_types, paths AS path ORDER BY reach_count DESC",
+      "response_file": "uc4_ssl_vpn_broad_reach_response.json"
+    },
+    {
+      "id": "uc5_top_subnets",
+      "name": "Top Subnets by Device Count",
+      "description": "Top 10 subnets ordered by device count",
+      "category": "Network Statistics",
+      "cypher": "MATCH p = (s:Subnet)-[:HAS_DEVICE]->(d:Device) RETURN s AS subnet, COUNT(d) AS device_count, p AS path ORDER BY device_count DESC LIMIT 10",
+      "response_file": "uc5_top_subnets_response.json"
+    },
+    {
+      "id": "uc6_path_between_devices",
+      "name": "Path Between Two Specific Devices",
+      "description": "Shortest path between w1clictxxa2301.aepc.com and s1clisgbd60434.aepc.com",
+      "category": "Path Analysis",
+      "cypher": "MATCH full_path = shortestPath((start:Device {label:'w1clictxxa2301.aepc.com'})-[:BELONGS_TO|MEMBER_OF|IS_SOURCE_OF|HAS_SOURCE|HAS_TARGET|TARGETED_BY|IPSEC_TUNNEL|IPSEC_TUNNEL_INVERSE*..10]-(end:Device {label:'s1clisgbd60434.aepc.com'})) RETURN full_path AS path",
+      "response_file": "uc6_path_between_devices_response.json"
+    }
+  ]
+}

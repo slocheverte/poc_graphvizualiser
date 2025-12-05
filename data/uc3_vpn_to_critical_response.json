@@ -1,0 +1,39 @@
+{
+  "analysis": {
+    "status": "error",
+    "summary": "Analysis failed: All refinement iterations failed",
+    "technical_analysis": "Critical error during analysis: All refinement iterations failed",
+    "recommendations": [
+      "Check system logs for detailed error information",
+      "Verify all system components are working correctly",
+      "Consider simplifying the question if it's too complex",
+      "Contact system administrator if the issue persists"
+    ],
+    "confidence": "Low",
+    "threat_level": "Info",
+    "next_steps": "Resolve the error and retry the analysis",
+    "data_summary": "No data analyzed due to error",
+    "insights": "No insights available due to error",
+    "risk_assessment": "Cannot assess risk due to error",
+    "original_question": "\nFind all VPN SSL ranges that can reach critical devices (criticality level 2.0).\nShow me the network paths from VPN SSL ranges to critical infrastructure.\nInclude all devices with criticality level 2.0 and their categories.\nLimit to 50 paths.\n",
+    "timestamp": "2025-12-05T02:57:25.620506",
+    "iterations_used": 0,
+    "error_details": "All refinement iterations failed",
+    "data": {
+      "nodes": [],
+      "relationships": [],
+      "meta": {
+        "original_status": "success",
+        "original_record_count": 0,
+        "original_query": "MATCH (vpn:VPN_SSL)-[:CONNECTS*]->(device:Device) WHERE device.criticality = 2.0 OPTIONAL MATCH (device)-[:BELONGS_TO]->(category:Category) RETURN vpn, device, category LIMIT 50"
+      }
+    },
+    "data_included": true
+  },
+  "graph": {
+    "nodes": [],
+    "edges": []
+  },
+  "graph_present": false,
+  "data_included": false
+}

@@ -1,0 +1,39 @@
+{
+  "analysis": {
+    "status": "error",
+    "summary": "Analysis failed: All refinement iterations failed",
+    "technical_analysis": "Critical error during analysis: All refinement iterations failed",
+    "recommendations": [
+      "Check system logs for detailed error information",
+      "Verify all system components are working correctly",
+      "Consider simplifying the question if it's too complex",
+      "Contact system administrator if the issue persists"
+    ],
+    "confidence": "Low",
+    "threat_level": "Info",
+    "next_steps": "Resolve the error and retry the analysis",
+    "data_summary": "No data analyzed due to error",
+    "insights": "No insights available due to error",
+    "risk_assessment": "Cannot assess risk due to error",
+    "original_question": "\nFind the shortest path between MTL_VPN_SSL_RANGE and the device VwLogibecDCR01.\nShow me all the network hops, including VPN connections, firewalls, and any IPSEC tunnels.\nDisplay the complete connectivity path with all relationship types.\n",
+    "timestamp": "2025-12-05T02:57:07.958991",
+    "iterations_used": 0,
+    "error_details": "All refinement iterations failed",
+    "data": {
+      "nodes": [],
+      "relationships": [],
+      "meta": {
+        "original_status": "success",
+        "original_record_count": 0,
+        "original_query": "MATCH (start:Node {name: 'MTL_VPN_SSL_RANGE'}), (end:Node {name: 'VwLogibecDCR01'}) OPTIONAL MATCH p=allShortestPaths((start)-[*]-(end)) UNWIND relationships(p) as rel RETURN DISTINCT start, end, p, type(rel) as relationshipType"
+      }
+    },
+    "data_included": true
+  },
+  "graph": {
+    "nodes": [],
+    "edges": []
+  },
+  "graph_present": false,
+  "data_included": false
+}

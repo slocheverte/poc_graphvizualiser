@@ -1,0 +1,113 @@
+{
+  "analysis": {
+    "status": "success",
+    "summary": "Found 1 path from Internet-exposed devices to VwLogibecDCR01",
+    "technical_analysis": "This analysis shows Internet-exposed devices that have network connectivity to the domain controller VwLogibecDCR01. The path traverses through a VIP (Virtual IP), a DMZ web server, and an internal firewall before reaching the target device.",
+    "recommendations": [
+      "Review and restrict Internet exposure paths to critical infrastructure",
+      "Implement network segmentation between DMZ and internal domain controllers",
+      "Add additional security controls at the firewall level",
+      "Monitor traffic from Internet-exposed devices to domain controllers"
+    ],
+    "confidence": "High",
+    "threat_level": "Critical",
+    "data_summary": "5 nodes, 4 relationships analyzed",
+    "timestamp": "2025-12-05T03:00:00.000000",
+    "original_question": "Find all Internet-exposed devices that can reach the device VwLogibecDCR01",
+    "record_count": 5
+  },
+  "data": {
+    "nodes": [
+      {
+        "id": "internet_1",
+        "label": "Internet",
+        "labels": ["Internet"],
+        "properties": {
+          "name": "Internet Gateway",
+          "type": "external"
+        }
+      },
+      {
+        "id": "vip_1",
+        "label": "VIP_PublicWeb",
+        "labels": ["VIP"],
+        "properties": {
+          "name": "VIP_PublicWeb",
+          "ip": "203.0.113.10",
+          "port": "443"
+        }
+      },
+      {
+        "id": "device_dmz_web01",
+        "label": "DMZ-WEB01",
+        "labels": ["Device"],
+        "properties": {
+          "name": "DMZ-WEB01",
+          "ip": "10.1.1.10",
+          "os": "Linux",
+          "criticality_level": "1.5"
+        }
+      },
+      {
+        "id": "device_fw01",
+        "label": "FW-INTERNAL-01",
+        "labels": ["Device", "Firewall"],
+        "properties": {
+          "name": "FW-INTERNAL-01",
+          "ip": "10.1.1.1",
+          "type": "firewall"
+        }
+      },
+      {
+        "id": "VwLogibecDCR01",
+        "label": "VwLogibecDCR01",
+        "labels": ["Device"],
+        "properties": {
+          "name": "VwLogibecDCR01",
+          "ip": "10.10.5.50",
+          "os": "Windows Server",
+          "criticality_level": "2.0",
+          "category": "Domain Controller"
+        }
+      }
+    ],
+    "relationships": [
+      {
+        "start_id": "internet_1",
+        "end_id": "vip_1",
+        "type": "EXPOSES",
+        "properties": {
+          "protocol": "HTTPS",
+          "port": "443"
+        }
+      },
+      {
+        "start_id": "vip_1",
+        "end_id": "device_dmz_web01",
+        "type": "MAPPED_TO",
+        "properties": {
+          "nat_type": "DNAT"
+        }
+      },
+      {
+        "start_id": "device_dmz_web01",
+        "end_id": "device_fw01",
+        "type": "IS_SOURCE_OF",
+        "properties": {
+          "action": "ACCEPT",
+          "protocol": "TCP"
+        }
+      },
+      {
+        "start_id": "device_fw01",
+        "end_id": "VwLogibecDCR01",
+        "type": "HAS_TARGET",
+        "properties": {
+          "action": "ACCEPT",
+          "protocol": "LDAP",
+          "port": "389"
+        }
+      }
+    ]
+  }
+}
